@@ -232,7 +232,7 @@ class pathim(Screen):
     #        self.event = Clock.schedule_interval(self.check, 0.5)
     #        os.listdir(app + "TO_PROCESS")
     #        os.listdir(app + "PROCESSED")
-    #    except Exception as e:
+    #    except Exception as _:
     #        screen_to = "pathim"
     #        self.manager.transition = SlideTransition(direction="down")
     #        self.manager.current = "no_folder_error"
@@ -262,7 +262,7 @@ class pathim(Screen):
         try:
             self.txt1.text = self.file_chooser.selection[0]
             self.popup.dismiss()
-        except Exception as e:
+        except Exception as _:
             self.txt1.text = ""
             self.popup.dismiss()
 
@@ -319,7 +319,7 @@ class pathim(Screen):
                 cv2.imwrite(os.path.dirname(app) + "/ProcessedImage=).png", image)
                 self.manager.transition = SlideTransition(direction="left")
                 self.manager.current = "finalim"
-        except Exception as e:
+        except Exception as _:
             self.manager.transition = SlideTransition(direction="down")
             self.manager.current = "error"
 
@@ -379,7 +379,7 @@ class pathim(Screen):
                         cv2.imwrite(os.path.dirname(app) + "/ProcessedImage=)" + str(picker) + ".png", image_final)
                     self.manager.transition = SlideTransition(direction="left")
                     self.manager.current = "finalim"
-        except Exception as e:
+        except Exception as _:
             self.manager.transition = SlideTransition(direction="down")
             self.manager.current = "error"
 
@@ -399,7 +399,7 @@ class pathim(Screen):
                 elif switcher == "smile":
                     classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
                 detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-                t = True
+                retry = True
                 counter = 0
                 if detection == ():
                     self.manager.transition = SlideTransition(direction="down")
@@ -414,19 +414,18 @@ class pathim(Screen):
                                         0.35,
                                         (20, 226, 20), 1)
                     cv2.imshow("PREVIEW", image)
-                    cv2.namedWindow("PREVIEW", cv2.WND_PROP_FULLSCREEN)
-                    cv2.setWindowProperty("PREVIEW", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                    cv2.namedWindow("PREVIEW")
                     cv2.waitKey(0)
-                    while t:
+                    while retry:
                         for event in pygame.event.get():
                             if event.type == pygame.KEYDOWN:
                                 if event.key == pygame.K_SPACE:
-                                    t = False
+                                    retry = False
                                     cv2.destroyAllWindows()
             elif switcher == "emotion":
                 face_recogn = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
                 detection = face_recogn.detectMultiScale(image, scaleFactor=1.2, minNeighbors=5)
-                t = True
+                retry = True
                 counter = 0
                 if detection == ():
                     self.manager.transition = SlideTransition(direction="down")
@@ -456,16 +455,15 @@ class pathim(Screen):
                             cv2.putText(image, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.35,
                                         (0, 0, 255), 1)
                     cv2.imshow("PREVIEW", image)
-                    cv2.namedWindow("PREVIEW", cv2.WND_PROP_FULLSCREEN)
-                    cv2.setWindowProperty("PREVIEW", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                    cv2.namedWindow("PREVIEW")
                     cv2.waitKey(0)
-                    while t:
+                    while retry:
                         for event in pygame.event.get():
                             if event.type == pygame.KEYDOWN:
                                 if event.key == pygame.K_SPACE:
-                                    t = False
+                                    retry = False
                                     cv2.destroyAllWindows()
-        except Exception as e:
+        except Exception as _:
             self.manager.transition = SlideTransition(direction="down")
             self.manager.current = "error"
 
@@ -485,11 +483,11 @@ class pathim(Screen):
                 elif switcher == "smile":
                     classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
                 detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-                t = True
+                retry = True
                 counter = 0
                 tracker = 0
                 counter_of_images = []
-                for element in detection:
+                for _ in detection:
                     counter += 1
                     counter_of_images.append(counter)
                 if detection == ():
@@ -513,14 +511,13 @@ class pathim(Screen):
                                         0.30,
                                         (20, 226, 20), 1)
                         cv2.imshow("PREVIEW", image_fin)
-                        cv2.namedWindow("PREVIEW", cv2.WND_PROP_FULLSCREEN)
-                        cv2.setWindowProperty("PREVIEW", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                        cv2.namedWindow("PREVIEW")
                         cv2.waitKey(0)
-                    while t:
+                    while retry:
                         for event in pygame.event.get():
                             if event.type == pygame.KEYDOWN:
                                 if event.key == pygame.K_SPACE:
-                                    t = False
+                                    retry = False
                                     cv2.destroyWindow("PREVIEW")
             elif switcher == "emotion":
                 face_recogn = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
@@ -529,11 +526,11 @@ class pathim(Screen):
                     self.manager.transition = SlideTransition(direction="down")
                     self.manager.current = "nodetections"
                 else:
-                    t = True
+                    retry = True
                     counter = 0
                     tracker = 0
                     counter_of_images = []
-                    for element in detection:
+                    for _ in detection:
                         counter += 1
                         counter_of_images.append(counter)
                     picker = 0
@@ -568,16 +565,15 @@ class pathim(Screen):
                                         0.30,
                                         (20, 226, 20), 1)
                         cv2.imshow("PREVIEW", image_final)
-                        cv2.namedWindow("PREVIEW", cv2.WND_PROP_FULLSCREEN)
-                        cv2.setWindowProperty("PREVIEW", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                        cv2.namedWindow("PREVIEW")
                         cv2.waitKey(0)
-                    while t:
+                    while retry:
                         for event in pygame.event.get():
                             if event.type == pygame.KEYDOWN:
                                 if event.key == pygame.K_SPACE:
-                                    t = False
+                                    retry = False
                                     cv2.destroyWindow("PREVIEW")
-        except Exception as e:
+        except Exception as _:
             self.manager.transition = SlideTransition(direction="down")
             self.manager.current = "error"
 
@@ -624,7 +620,7 @@ class pathimcam(Screen):
     #        self.event = Clock.schedule_interval(self.check, 0.5)
     #        os.listdir(app + "TO_PROCESS")
     #        os.listdir(app + "PROCESSED")
-    #    except Exception as e:
+    #    except Exception as _:
     #        screen_to = "pathimcam"
     #        self.manager.transition = SlideTransition(direction="down")
     #        self.manager.current = "no_folder_error"
@@ -701,7 +697,7 @@ class pathimcam(Screen):
                     cv2.imwrite(app + "/ProcessedImage=).png", frame)
                     self.manager.transition = SlideTransition(direction="left")
                     self.manager.current = "finalim"
-        except Exception as e:
+        except Exception as _:
             self.manager.transition = SlideTransition(direction="down")
             self.manager.current = "errorimcam"
 
@@ -762,7 +758,7 @@ class pathimcam(Screen):
                         cv2.imwrite(app + "/ProcessedImage=)" + str(picker) + ".png", image_final)
                     self.manager.transition = SlideTransition(direction="left")
                     self.manager.current = "finalim"
-        except Exception as e:
+        except Exception as _:
             self.manager.transition = SlideTransition(direction="down")
             self.manager.current = "errorimcam"
 
@@ -781,7 +777,7 @@ class pathimcam(Screen):
             elif switcher == "smile":
                 classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
             detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-            t = True
+            retry = True
             counter = 0
             if detection == ():
                 self.manager.transition = SlideTransition(direction="down")
@@ -795,20 +791,19 @@ class pathimcam(Screen):
                                     0.35,
                                     (20, 226, 20), 1)
                 cv2.imshow("PREVIEW", frame)
-                cv2.namedWindow("PREVIEW", cv2.WND_PROP_FULLSCREEN)
-                cv2.setWindowProperty("PREVIEW", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                cv2.namedWindow("PREVIEW")
                 cv2.waitKey(0)
                 image.release()
-                while t:
+                while retry:
                     for event in pygame.event.get():
                         if event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_SPACE:
-                                t = False
+                                retry = False
                                 cv2.destroyAllWindows()
         elif switcher == "emotion":
             face_recogn = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
             detection = face_recogn.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
-            t = True
+            retry = True
             counter = 0
             if detection == ():
                 self.manager.transition = SlideTransition(direction="down")
@@ -838,14 +833,13 @@ class pathimcam(Screen):
                         cv2.putText(frame, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.35,
                                     (0, 0, 255), 1)
                 cv2.imshow("PREVIEW", frame)
-                cv2.namedWindow("PREVIEW", cv2.WND_PROP_FULLSCREEN)
-                cv2.setWindowProperty("PREVIEW", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                cv2.namedWindow("PREVIEW")
                 cv2.waitKey(0)
-                while t:
+                while retry:
                     for event in pygame.event.get():
                         if event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_SPACE:
-                                t = False
+                                retry = False
                                 cv2.destroyAllWindows()
 
     def result_area(self, *args):
@@ -863,11 +857,11 @@ class pathimcam(Screen):
             elif switcher == "smile":
                 classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
             detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-            t = True
+            retry = True
             counter = 0
             tracker = 0
             counter_of_images = []
-            for element in detection:
+            for _ in detection:
                 counter += 1
                 counter_of_images.append(counter)
             if detection == ():
@@ -891,15 +885,14 @@ class pathimcam(Screen):
                                     0.30,
                                     (20, 226, 20), 1)
                     cv2.imshow("PREVIEW", image_fin)
-                    cv2.namedWindow("PREVIEW", cv2.WND_PROP_FULLSCREEN)
-                    cv2.setWindowProperty("PREVIEW", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                    cv2.namedWindow("PREVIEW")
                     cv2.waitKey(0)
                     image.release()
-                while t:
+                while retry:
                     for event in pygame.event.get():
                         if event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_SPACE:
-                                t = False
+                                retry = False
                                 cv2.destroyWindow("PREVIEW")
         elif switcher == "emotion":
             face_recogn = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
@@ -908,11 +901,11 @@ class pathimcam(Screen):
                 self.manager.transition = SlideTransition(direction="down")
                 self.manager.current = "nodetectionscam"
             else:
-                t = True
+                retry = True
                 counter = 0
                 tracker = 0
                 counter_of_images = []
-                for element in detection:
+                for _ in detection:
                     counter += 1
                     counter_of_images.append(counter)
                 picker = 0
@@ -947,14 +940,13 @@ class pathimcam(Screen):
                                     0.30,
                                     (20, 226, 20), 1)
                     cv2.imshow("PREVIEW", image_final)
-                    cv2.namedWindow("PREVIEW", cv2.WND_PROP_FULLSCREEN)
-                    cv2.setWindowProperty("PREVIEW", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                    cv2.namedWindow("PREVIEW")
                     cv2.waitKey(0)
-                while t:
+                while retry:
                     for event in pygame.event.get():
                         if event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_SPACE:
-                                t = False
+                                retry = False
                                 cv2.destroyWindow("PREVIEW")
 
 
@@ -1028,7 +1020,7 @@ class pathvid(Screen):
     #        self.event = Clock.schedule_interval(self.check, 0.5)
     #        os.listdir(app + "TO_PROCESS")
     #        os.listdir(app + "PROCESSED")
-    #    except Exception as e:
+    #    except Exception as _:
     #        screen_to = "pathimcam"
     #        self.manager.transition = SlideTransition(direction="down")
     #        self.manager.current = "no_folder_error"
@@ -1058,7 +1050,7 @@ class pathvid(Screen):
         try:
             self.txt1.text = self.file_chooser.selection[0]
             self.popup.dismiss()
-        except Exception as e:
+        except Exception as _:
             self.txt1.text = ""
             self.popup.dismiss()
 
@@ -1088,7 +1080,7 @@ class pathvid(Screen):
                 self.txt1.text[-3:]) != "pdf" and str(self.txt1.text[-3:]) != "eps" and str(
                 self.txt1.text[-3:]) != ".ai" and str(
                 self.txt1.text[-3:]) != "ndd" and str(self.txt1.text[-3:]) != "raw":
-                t = True
+                retry = True
                 video_check = cv2.VideoCapture(app)
                 k, frame_raw_check = video_check.read()
                 cv2.resize(frame_raw_check, (520, 400))
@@ -1102,7 +1094,7 @@ class pathvid(Screen):
                 height = float(height)
                 try:
                     if switcher != "emotion":
-                        while t:
+                        while retry:
                             k, frame_raw = video.read()
                             frame = cv2.resize(frame_raw, (int(width), int(height)))
                             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -1124,16 +1116,15 @@ class pathvid(Screen):
                             for (x, y, z, w) in detection:
                                 cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
                             cv2.imshow("PREVIEW", frame)
-                            cv2.namedWindow("PREVIEW", cv2.WND_PROP_FULLSCREEN)
-                            cv2.setWindowProperty("PREVIEW", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                            cv2.namedWindow("PREVIEW")
                             for event in pygame.event.get():
                                 if event.type == pygame.KEYDOWN:
                                     if event.key == pygame.K_SPACE:
-                                        t = False
+                                        retry = False
                                         cv2.destroyWindow("PREVIEW")
                     elif switcher == "emotion":
-                        t = True
-                        while t:
+                        retry = True
+                        while retry:
                             k, frame_raw = video.read()
                             frame = cv2.resize(frame_raw, (int(width), int(height)))
                             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -1165,20 +1156,19 @@ class pathvid(Screen):
                                                 0.35,
                                                 (0, 0, 255), 1)
                             cv2.imshow("PREVIEW", frame)
-                            cv2.namedWindow("PREVIEW", cv2.WND_PROP_FULLSCREEN)
-                            cv2.setWindowProperty("PREVIEW", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                            cv2.namedWindow("PREVIEW")
                             for event in pygame.event.get():
                                 if event.type == pygame.KEYDOWN:
                                     if event.key == pygame.K_SPACE:
-                                        t = False
+                                        retry = False
                                         cv2.destroyAllWindows()
-                except Exception as e:
+                except Exception as _:
                     video.release()
                     cv2.destroyAllWindows()
             else:
                 self.manager.transition = SlideTransition(direction="down")
                 self.manager.current = "errorvid"
-        except Exception as e:
+        except Exception as _:
             self.manager.transition = SlideTransition(direction="down")
             self.manager.current = "errorvid"
 
@@ -1232,7 +1222,7 @@ class pathvidcam(Screen):
     #        self.event = Clock.schedule_interval(self.check, 0.5)
     #        os.listdir(app + "TO_PROCESS")
     #        os.listdir(app + "PROCESSED")
-    #    except Exception as e:
+    #    except Exception as _:
     #        screen_to = "pathimcam"
     #        self.manager.transition = SlideTransition(direction="down")
     #        self.manager.current = "no_folder_error"
@@ -1258,7 +1248,7 @@ class pathvidcam(Screen):
 
     def scan(self, *args):
         try:
-            t = True
+            retry = True
             video = cv2.VideoCapture(0)
             height_test = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
             width_test = video.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -1266,10 +1256,10 @@ class pathvidcam(Screen):
             height = str(height_test)
             width = float(width)
             height = float(height)
-            capture = cv2.VideoWriter(app + "ProcessedVideo=).avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
+            capture = cv2.VideoWriter(app + "/ProcessedVideo=).avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
                                       (int(width), int(height)))
             if switcher != "emotion":
-                while t:
+                while retry:
                     k, frame_raw = video.read()
                     frame = cv2.resize(frame_raw, (int(width), int(height)))
                     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -1291,18 +1281,17 @@ class pathvidcam(Screen):
                                 0.35,
                                 (20, 226, 20), 1)
                     cv2.imshow("RECORDING", frame)
-                    cv2.namedWindow("RECORDING", cv2.WND_PROP_FULLSCREEN)
-                    cv2.setWindowProperty("RECORDING", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                    cv2.namedWindow("RECORDING")
                     for event in pygame.event.get():
                         if event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_SPACE:
-                                t = False
+                                retry = False
                                 cv2.destroyAllWindows()
                                 video.release()
                                 self.manager.transition = SlideTransition(direction="left")
                                 self.manager.current = "finalim"
             elif switcher == "emotion":
-                while t:
+                while retry:
                     k, frame_raw = video.read()
                     frame = cv2.resize(frame_raw, (int(width), int(height)))
                     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -1331,28 +1320,27 @@ class pathvidcam(Screen):
                                 0.35,
                                 (20, 226, 20), 1)
                     cv2.imshow("RECORDING", frame)
-                    cv2.namedWindow("RECORDING", cv2.WND_PROP_FULLSCREEN)
-                    cv2.setWindowProperty("RECORDING", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                    cv2.namedWindow("RECORDING")
                     for event in pygame.event.get():
                         if event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_SPACE:
-                                t = False
+                                retry = False
                                 cv2.destroyAllWindows()
                                 video.release()
                                 self.manager.transition = SlideTransition(direction="left")
                                 self.manager.current = "finalim"
-        except Exception as e:
+        except Exception as _:
             self.manager.transition = SlideTransition(direction="down")
             self.manager.current = "errorvidcam"
 
     def scan_area(self, *args):
         try:
-            capture = cv2.VideoWriter(app + "ProcessedVideo=).avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
+            capture = cv2.VideoWriter(app + "/ProcessedVideo=).avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
                                       (520, 400))
-            t = True
+            retry = True
             video = cv2.VideoCapture(0)
             if switcher != "emotion":
-                while t:
+                while retry:
                     k, frame_raw = video.read()
                     frame = cv2.resize(frame_raw, (520, 400))
                     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -1377,8 +1365,7 @@ class pathvidcam(Screen):
                                     1,
                                     (20, 226, 20), 1)
                         cv2.imshow("RECORDING", frame)
-                        cv2.namedWindow("RECORDING", cv2.WND_PROP_FULLSCREEN)
-                        cv2.setWindowProperty("RECORDING", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                        cv2.namedWindow("RECORDING")
                     else:
                         for (x, y, z, w) in detection:
                             cut = frame[y:y + z, x:x + w]
@@ -1389,18 +1376,17 @@ class pathvidcam(Screen):
                                         0.35,
                                         (20, 226, 20), 1)
                             cv2.imshow("RECORDING", cut_image)
-                            cv2.namedWindow("RECORDING", cv2.WND_PROP_FULLSCREEN)
-                            cv2.setWindowProperty("RECORDING", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                            cv2.namedWindow("RECORDING")
                     for event in pygame.event.get():
                         if event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_SPACE:
-                                t = False
+                                retry = False
                                 cv2.destroyAllWindows()
                                 video.release()
                                 self.manager.transition = SlideTransition(direction="left")
                                 self.manager.current = "finalim"
             elif switcher == "emotion":
-                while t:
+                while retry:
                     k, frame_raw = video.read()
                     frame = cv2.resize(frame_raw, (520, 400))
                     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -1442,23 +1428,22 @@ class pathvidcam(Screen):
                                         (20, 226, 20), 1)
                             frame = image_final
                     cv2.imshow("RECORDING", frame)
-                    cv2.namedWindow("RECORDING", cv2.WND_PROP_FULLSCREEN)
-                    cv2.setWindowProperty("RECORDING", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                    cv2.namedWindow("RECORDING")
                     for event in pygame.event.get():
                         if event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_SPACE:
-                                t = False
+                                retry = False
                                 cv2.destroyAllWindows()
                                 video.release()
                                 self.manager.transition = SlideTransition(direction="left")
                                 self.manager.current = "finalim"
-        except Exception as e:
+        except Exception as _:
             self.manager.transition = SlideTransition(direction="down")
             self.manager.current = "errorvidcam"
 
     def result(self, *args):
         try:
-            t = True
+            retry = True
             video = cv2.VideoCapture(0)
             height_test = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
             width_test = video.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -1467,7 +1452,7 @@ class pathvidcam(Screen):
             width = float(width)
             height = float(height)
             if switcher != "emotion":
-                while t:
+                while retry:
                     k, frame_raw = video.read()
                     frame = cv2.resize(frame_raw, (int(width), int(height)))
                     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -1494,17 +1479,16 @@ class pathvidcam(Screen):
                                 0.35,
                                 (20, 226, 20), 1)
                     cv2.imshow("PREVIEW", frame)
-                    cv2.namedWindow("PREVIEW", cv2.WND_PROP_FULLSCREEN)
-                    cv2.setWindowProperty("PREVIEW", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                    cv2.namedWindow("PREVIEW")
                     for event in pygame.event.get():
                         if event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_SPACE:
-                                t = False
+                                retry = False
                                 cv2.destroyAllWindows()
                                 video.release()
             elif switcher == "emotion":
-                t = True
-                while t:
+                retry = True
+                while retry:
                     k, frame_raw = video.read()
                     frame = cv2.resize(frame_raw, (int(width), int(height)))
                     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -1548,23 +1532,22 @@ class pathvidcam(Screen):
                                             0.35,
                                             (0, 0, 255), 1)
                     cv2.imshow("PREVIEW", frame)
-                    cv2.namedWindow("PREVIEW", cv2.WND_PROP_FULLSCREEN)
-                    cv2.setWindowProperty("PREVIEW", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                    cv2.namedWindow("PREVIEW")
                     for event in pygame.event.get():
                         if event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_SPACE:
-                                t = False
+                                retry = False
                                 cv2.destroyAllWindows()
-        except Exception as e:
+        except Exception as _:
             self.manager.transition = SlideTransition(direction="down")
             self.manager.current = "errorvidcam"
 
     def result_area(self, *args):
         try:
-            t = True
+            retry = True
             video = cv2.VideoCapture(0)
             if switcher != "emotion":
-                while t:
+                while retry:
                     k, frame_raw = video.read()
                     frame = cv2.resize(frame_raw, (520, 400))
                     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -1597,16 +1580,15 @@ class pathvidcam(Screen):
                                         (20, 226, 20), 1)
                             frame = cut_image
                     cv2.imshow("PREVIEW", frame)
-                    cv2.namedWindow("PREVIEW", cv2.WND_PROP_FULLSCREEN)
-                    cv2.setWindowProperty("PREVIEW", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                    cv2.namedWindow("PREVIEW")
                     for event in pygame.event.get():
                         if event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_SPACE:
-                                t = False
+                                retry = False
                                 cv2.destroyAllWindows()
                                 video.release()
             elif switcher == "emotion":
-                while t:
+                while retry:
                     k, frame_raw = video.read()
                     frame = cv2.resize(frame_raw, (520, 400))
                     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -1646,15 +1628,14 @@ class pathvidcam(Screen):
                                         (20, 226, 20), 1)
                             frame = image_final
                     cv2.imshow("PREVIEW", frame)
-                    cv2.namedWindow("PREVIEW", cv2.WND_PROP_FULLSCREEN)
-                    cv2.setWindowProperty("PREVIEW", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                    cv2.namedWindow("PREVIEW")
                     for event in pygame.event.get():
                         if event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_SPACE:
-                                t = False
+                                retry = False
                                 cv2.destroyAllWindows()
                                 video.release()
-        except Exception as e:
+        except Exception as _:
             self.manager.transition = SlideTransition(direction="down")
             self.manager.current = "errorvidcam"
 
@@ -1805,8 +1786,8 @@ class loading_scan(Screen):
             self.model = model_from_json(open(app_assets + "assets/neuralnet.json", "r").read())
             self.model.load_weights(app_assets + "assets/weights.h5")
             audio = AudioFileClip(txt1)
-            audio.write_audiofile(os.path.dirname(txt1) + "/audio.mp3")
-            t = True
+            audio.write_audiofile(app + "/audio.mp3")
+            retry = True
             video = cv2.VideoCapture(txt1)
             height_test = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
             width_test = video.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -1814,11 +1795,11 @@ class loading_scan(Screen):
             height = str(height_test)
             width = float(width)
             height = float(height)
-            capture = cv2.VideoWriter(os.path.dirname(txt1) + "/ProcessedVideo=).avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
+            capture = cv2.VideoWriter(app + "/ProcessedVideo=).avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
                                       (int(width), int(height)))
             try:
                 if switcher != "emotion":
-                    while t:
+                    while retry:
                         k, frame_raw = video.read()
                         frame = cv2.resize(frame_raw, (int(width), int(height)))
                         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -1837,7 +1818,7 @@ class loading_scan(Screen):
                             cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
                         capture.write(frame)
                 elif switcher == "emotion":
-                    while t:
+                    while retry:
                         k, frame_raw = video.read()
                         frame = cv2.resize(frame_raw, (int(width), int(height)))
                         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -1861,20 +1842,23 @@ class loading_scan(Screen):
                                 cv2.putText(frame, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.35,
                                             (0, 0, 255), 1)
                         capture.write(frame)
-            except Exception as e:
+            except Exception as _:
                 video.release()
-                # input_audio = ffmpeg.input(app_assets + "assets/audio.mp3")
-                # input_video = ffmpeg.input(app_assets + "assets/video.avi")
-                # (
-                #    ffmpeg
-                #        .concat(input_video, input_audio, v=1, a=1)
-                #       .output(app + "PROCESSED/ProcessedVideo=).avi")
-                #        .global_args('-loglevel', 'quiet')
-                #        .run(capture_stdout=True, overwrite_output=True)
-                # )
+                try:
+                    input_audio = ffmpeg.input(app + "/audio.mp3")
+                    input_video = ffmpeg.input(app + "/ProcessedVideoWithAudio.avi")
+                    (
+                        ffmpeg
+                            .concat(input_video, input_audio, v=1, a=1)
+                            .output(app + "/ProcessedVideoWithAudio=).avi")
+                            .global_args('-loglevel', 'quiet')
+                            .run(capture_stdout=True, overwrite_output=True)
+                    )
+                except Exception as e:
+                    print("FFMPEG EXCEPTION: " + str(e))
                 self.manager.transition = SlideTransition(direction="left")
                 self.manager.current = "finalim"
-        except Exception as e:
+        except Exception as _:
             self.manager.transition = SlideTransition(direction="down")
             self.manager.current = "errorvid"
 
@@ -1906,17 +1890,17 @@ class loading_scan_areas(Screen):
                 txt1[-3:]) != "iff" and str(txt1[-3:]) != "psd" and str(
                 txt1[-3:]) != "pdf" and str(txt1[-3:]) != "eps" and str(txt1[-3:]) != ".ai" and str(
                 txt1[-3:]) != "ndd" and str(txt1[-3:]) != "raw":
-                t = True
+                retry = True
                 video_check = cv2.VideoCapture(txt1)
                 k, frame_raw_check = video_check.read()
                 cv2.resize(frame_raw_check, (520, 400))
                 video_check.release()
                 video = cv2.VideoCapture(txt1)
-                capture = cv2.VideoWriter(os.path.dirname(txt1) + "/ProcessedVideo=).avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
+                capture = cv2.VideoWriter(app + "/ProcessedVideo=).avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
                                           (520, 400))
                 try:
                     if switcher != "emotion":
-                        while t:
+                        while retry:
                             k, frame_raw = video.read()
                             frame = cv2.resize(frame_raw, (520, 400))
                             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -1936,7 +1920,7 @@ class loading_scan_areas(Screen):
                                 final_cut_frame = cv2.resize(final_frame, (520, 400))
                                 capture.write(final_cut_frame)
                     elif switcher == "emotion":
-                        while t:
+                        while retry:
                             k, frame_raw = video.read()
                             frame = cv2.resize(frame_raw, (520, 400))
                             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -1963,14 +1947,14 @@ class loading_scan_areas(Screen):
                                             1.4,
                                             (0, 0, 255), 2)
                                 capture.write(image_final)
-                except Exception as e:
+                except Exception as _:
                     video.release()
                     self.manager.transition = SlideTransition(direction="left")
                     self.manager.current = "finalim"
             else:
                 self.manager.transition = SlideTransition(direction="down")
                 self.manager.current = "errorvid"
-        except Exception as e:
+        except Exception as _:
             self.manager.transition = SlideTransition(direction="down")
             self.manager.current = "errorvid"
 
@@ -2002,7 +1986,7 @@ class loading_result_areas(Screen):
                     txt1[-3:]) != "png" and str(txt1[-3:]) != "iff" and str(txt1[-3:]) != "psd" and str(
                 txt1[-3:]) != "pdf" and str(txt1[-3:]) != "eps" and str(txt1[-3:]) != ".ai" and str(
                 txt1[-3:]) != "ndd" and str(txt1[-3:]) != "raw":
-                t = True
+                retry = True
                 video_check = cv2.VideoCapture(txt1)
                 k, frame_raw_check = video_check.read()
                 cv2.resize(frame_raw_check, (520, 400))
@@ -2012,7 +1996,7 @@ class loading_result_areas(Screen):
                                           (520, 400))
                 try:
                     if switcher != "emotion":
-                        while t:
+                        while retry:
                             k, frame_raw = video.read()
                             frame = cv2.resize(frame_raw, (520, 400))
                             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -2036,8 +2020,8 @@ class loading_result_areas(Screen):
                                             (20, 226, 20), 1)
                                 capture.write(final_cut_frame)
                     elif switcher == "emotion":
-                        t = True
-                        while t:
+                        retry = True
+                        while retry:
                             k, frame_raw = video.read()
                             frame = cv2.resize(frame_raw, (520, 400))
                             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -2069,9 +2053,9 @@ class loading_result_areas(Screen):
                                 for event in pygame.event.get():
                                     if event.type == pygame.KEYDOWN:
                                         if event.key == pygame.K_SPACE:
-                                            t = False
+                                            retry = False
                                             cv2.destroyWindow("PREVIEW")
-                except Exception as e:
+                except Exception as _:
                     video.release()
                     self.manager.transition = SlideTransition(direction="left")
                     self.manager.current = "pathvid"
@@ -2079,7 +2063,7 @@ class loading_result_areas(Screen):
                 self.switcher = False
                 self.manager.transition = SlideTransition(direction="down")
                 self.manager.current = "errorvid"
-        except Exception as e:
+        except Exception as _:
             self.switcher = False
             self.manager.transition = SlideTransition(direction="down")
             self.manager.current = "errorvid"
@@ -2093,15 +2077,14 @@ class loading_result_areas(Screen):
                 while fin:
                     kk, frame_fin = detected.read()
                     cv2.imshow("PREVIEW", frame_fin)
-                    cv2.namedWindow("PREVIEW", cv2.WND_PROP_FULLSCREEN)
-                    cv2.setWindowProperty("PREVIEW", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                    cv2.namedWindow("PREVIEW")
                     time.sleep(0.1)
                     for event in pygame.event.get():
                         if event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_SPACE:
                                 fin = False
                                 cv2.destroyAllWindows()
-            except Exception as e:
+            except Exception as _:
                 detected.release()
                 cv2.destroyAllWindows()
 
@@ -2135,7 +2118,7 @@ class no_folder_error(Screen):
             self.event.cancel()
             self.manager.transition = SlideTransition(direction="up")
             self.manager.current = screen_to
-        except Exception as e:
+        except Exception as _:
             pass
 
 
