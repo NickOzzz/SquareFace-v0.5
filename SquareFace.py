@@ -26,7 +26,7 @@ classifier = ""
 selected_file_path = ""
 app = ""
 app_assets = ""
-cam_port = 1
+cam_port = 0
 screen_to = "choose"
 
 
@@ -54,10 +54,10 @@ class welcome(Screen):
                       pos_hint={"x": 0.05, "y": 0.10},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20), font_size="13sp")
         but5.bind(on_press=self.switchtoemotion)
-        label3 = Label(text="SPECIFY YOUR CAMERA PORT IF NEEDED (Default is 1)",
+        label3 = Label(text="SPECIFY YOUR CAMERA PORT IF NEEDED (Default is 0)",
                        pos_hint={"x": 0.14, "y": -0.25},
                        color=(0.309, 0.933, 0.078, 4))
-        self.txt1 = TextInput(text="1",
+        self.txt1 = TextInput(text="0",
                               multiline=False,
                               size_hint=(0.55, .07),
                               pos_hint={'x': 0.37, 'y': 0.15},
