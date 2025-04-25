@@ -4,9 +4,8 @@ SQUAREFACEAPP setup
 -- Local run without package
 
 NOTE: Python3.9 and Conda required!!!
-1. Use SquareFaceVenv virtual environment for package installation via "source SquareFaceVenv/bin/activate"
-2. Use requirements.txt to install all modules via "pip install -r requirements.txt"
-3. Run via "python3 SquareFace.py"
+1. Use requirements.txt to install all modules via "pip install -r requirements.txt" (Installation into virtualenv is recommended)
+2. Run via "python3 SquareFace.py"
 
 -- Packaged run
 
