@@ -22,10 +22,8 @@ import keras.preprocessing.image as ima
 
 
 switcher = ""
-folder_path = ""
 classifier = ""
-txt1 = ""
-txt2 = ""
+selected_file_path = ""
 app = ""
 app_assets = ""
 cam_port = 1
@@ -1069,14 +1067,14 @@ class pathvid(Screen):
         self.manager.current = "choose"
 
     def scan(self, *args):
-        global txt1
-        txt1 = str(self.txt1.text)
+        global selected_file_path
+        selected_file_path = str(self.txt1.text)
         self.manager.transition = SlideTransition(direction="left")
         self.manager.current = "loading_scan"
 
     def scan_area(self, *args):
-        global txt1
-        txt1 = str(self.txt1.text)
+        global selected_file_path
+        selected_file_path = str(self.txt1.text)
         self.manager.transition = SlideTransition(direction="left")
         self.manager.current = "loading_scan_areas"
 
@@ -1183,8 +1181,8 @@ class pathvid(Screen):
             self.manager.current = "errorvid"
 
     def result_area(self, *args):
-        global txt1
-        txt1 = str(self.txt1.text)
+        global selected_file_path
+        selected_file_path = str(self.txt1.text)
         self.manager.transition = SlideTransition(direction="left")
         self.manager.current = "loading_result_areas"
 
@@ -1795,10 +1793,10 @@ class loading_scan(Screen):
         try:
             self.model = model_from_json(open(app_assets + "assets/neuralnet.json", "r").read())
             self.model.load_weights(app_assets + "assets/weights.h5")
-            audio = AudioFileClip(txt1)
+            audio = AudioFileClip(selected_file_path)
             audio.write_audiofile(app + "/audio.mp3")
             retry = True
-            video = cv2.VideoCapture(txt1)
+            video = cv2.VideoCapture(selected_file_path)
             height_test = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
             width_test = video.get(cv2.CAP_PROP_FRAME_WIDTH)
             width = str(width_test)
@@ -1895,17 +1893,17 @@ class loading_scan_areas(Screen):
         try:
             self.model = model_from_json(open(app_assets + "assets/neuralnet.json", "r").read())
             self.model.load_weights(app_assets + "assets/weights.h5")
-            if str(txt1[-3:]) != "peg" and str(txt1[-3:]) != "jpg" and str(
-                    txt1[-3:]) != "gif" and str(txt1[-3:]) != "png" and str(
-                txt1[-3:]) != "iff" and str(txt1[-3:]) != "psd" and str(
-                txt1[-3:]) != "pdf" and str(txt1[-3:]) != "eps" and str(txt1[-3:]) != ".ai" and str(
-                txt1[-3:]) != "ndd" and str(txt1[-3:]) != "raw":
+            if str(selected_file_path[-3:]) != "peg" and str(selected_file_path[-3:]) != "jpg" and str(
+                    selected_file_path[-3:]) != "gif" and str(selected_file_path[-3:]) != "png" and str(
+                selected_file_path[-3:]) != "iff" and str(selected_file_path[-3:]) != "psd" and str(
+                selected_file_path[-3:]) != "pdf" and str(selected_file_path[-3:]) != "eps" and str(selected_file_path[-3:]) != ".ai" and str(
+                selected_file_path[-3:]) != "ndd" and str(selected_file_path[-3:]) != "raw":
                 retry = True
-                video_check = cv2.VideoCapture(txt1)
+                video_check = cv2.VideoCapture(selected_file_path)
                 k, frame_raw_check = video_check.read()
                 cv2.resize(frame_raw_check, (520, 400))
                 video_check.release()
-                video = cv2.VideoCapture(txt1)
+                video = cv2.VideoCapture(selected_file_path)
                 capture = cv2.VideoWriter(app + "/ProcessedVideo=).avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
                                           (520, 400))
                 try:
@@ -1992,16 +1990,16 @@ class loading_result_areas(Screen):
         try:
             self.model = model_from_json(open(app_assets + "assets/neuralnet.json", "r").read())
             self.model.load_weights(app_assets + "assets/weights.h5")
-            if str(txt1[-3:]) != "peg" and str(txt1[-3:]) != "jpg" and str(txt1[-3:]) != "gif" and str(
-                    txt1[-3:]) != "png" and str(txt1[-3:]) != "iff" and str(txt1[-3:]) != "psd" and str(
-                txt1[-3:]) != "pdf" and str(txt1[-3:]) != "eps" and str(txt1[-3:]) != ".ai" and str(
-                txt1[-3:]) != "ndd" and str(txt1[-3:]) != "raw":
+            if str(selected_file_path[-3:]) != "peg" and str(selected_file_path[-3:]) != "jpg" and str(selected_file_path[-3:]) != "gif" and str(
+                    selected_file_path[-3:]) != "png" and str(selected_file_path[-3:]) != "iff" and str(selected_file_path[-3:]) != "psd" and str(
+                selected_file_path[-3:]) != "pdf" and str(selected_file_path[-3:]) != "eps" and str(selected_file_path[-3:]) != ".ai" and str(
+                selected_file_path[-3:]) != "ndd" and str(selected_file_path[-3:]) != "raw":
                 retry = True
-                video_check = cv2.VideoCapture(txt1)
+                video_check = cv2.VideoCapture(selected_file_path)
                 k, frame_raw_check = video_check.read()
                 cv2.resize(frame_raw_check, (520, 400))
                 video_check.release()
-                video = cv2.VideoCapture(txt1)
+                video = cv2.VideoCapture(selected_file_path)
                 capture = cv2.VideoWriter(app_assets + "assets/detected.avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
                                           (520, 400))
                 try:
