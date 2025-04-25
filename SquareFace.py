@@ -5,7 +5,7 @@ from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.image import Image, AsyncImage
-from kivy.uix.filechooser import FileChooserListView, FileChooserIconView
+from kivy.uix.filechooser import FileChooserIconView
 from kivy.uix.popup import Popup
 import cv2
 import os
@@ -28,6 +28,7 @@ txt1 = ""
 txt2 = ""
 app = ""
 app_assets = ""
+cam_port = 1
 screen_to = "choose"
 
 
@@ -37,7 +38,7 @@ class welcome(Screen):
         layout = FloatLayout(size=(350, 600))
 
         label1 = Label(text="WELCOME TO SQUARE FACE", pos_hint={"x": -0.003, "y": 0.20}, color=(0.309, 0.933, 0.078, 4))
-        label2 = Label(text="choose what you want to detect or recognize", pos_hint={"x": -0.004, "y": 0.123},
+        label2 = Label(text="CHOOSE WHAT YOU WOULD LIKE TO DETECT OR RECOGNIZE", pos_hint={"x": -0.004, "y": 0.123},
                        color=(0.309, 0.933, 0.078, 4))
         but1 = Button(text="FACE", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.04, "y": 0.38},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.20, 0.15))
@@ -51,65 +52,74 @@ class welcome(Screen):
         but4 = Button(text="SMILE", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.76, "y": 0.38},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.20, 0.15))
         but4.bind(on_press=self.switchtosmile)
-        but5 = Button(text="LICENSE PLATE AND IT'S NUMBER", background_color=(0.309, 0.933, 0.078, 4),
-                      pos_hint={"x": 0.358, "y": 0.10},
-                      color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20), font_size="13sp")
-        but5.bind(on_press=self.switch)
-        but6 = Button(text="FACE AND PERSON'S IDENTITY", background_color=(0.309, 0.933, 0.078, 4),
-                      pos_hint={"x": 0.665, "y": 0.10},
-                      color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20), font_size="13sp")
-        but6.bind(on_press=self.switch)
-        but7 = Button(text="EMOTION", background_color=(0.309, 0.933, 0.078, 4),
+        but5 = Button(text="EMOTION", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.05, "y": 0.10},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20), font_size="13sp")
-        but7.bind(on_press=self.switchtoemotion)
+        but5.bind(on_press=self.switchtoemotion)
+        label3 = Label(text="SPECIFY YOUR CAMERA PORT IF NEEDED (Default is 1)",
+                       pos_hint={"x": 0.14, "y": -0.25},
+                       color=(0.309, 0.933, 0.078, 4))
+        self.txt1 = TextInput(text="1",
+                              multiline=False,
+                              size_hint=(0.55, .07),
+                              pos_hint={'x': 0.37, 'y': 0.15},
+                              background_color=(0.309, 0.933, 0.078, 4))
         img = Image(source=app_assets + "assets/logo.png", size_hint=(0.15, .3), pos_hint={"x": 0.423, "y": 0.71})
 
         layout.add_widget(label1)
         layout.add_widget(label2)
+        layout.add_widget(label3)
         layout.add_widget(but1)
         layout.add_widget(but2)
         layout.add_widget(but3)
         layout.add_widget(but4)
         layout.add_widget(but5)
-        layout.add_widget(but6)
-        layout.add_widget(but7)
         layout.add_widget(img)
+        layout.add_widget(self.txt1)
         self.add_widget(layout)
 
-    def switch(self, *args):
-        self.manager.transition = SlideTransition(direction="left")
-        self.manager.current = "premium"
-
     def switchtoface(self, *args):
+        self.apply_cam_port()
         global switcher
         switcher = "face"
         self.manager.transition = SlideTransition(direction="left")
         self.manager.current = "choose"
 
     def switchtobody(self, *args):
+        self.apply_cam_port()
         global switcher
         switcher = "body"
         self.manager.transition = SlideTransition(direction="left")
         self.manager.current = "choose"
 
     def switchtoeye(self, *args):
+        self.apply_cam_port()
         global switcher
         switcher = "eye"
         self.manager.transition = SlideTransition(direction="left")
         self.manager.current = "choose"
 
     def switchtosmile(self, *args):
+        self.apply_cam_port()
         global switcher
         switcher = "smile"
         self.manager.transition = SlideTransition(direction="left")
         self.manager.current = "choose"
 
     def switchtoemotion(self, *args):
+        self.apply_cam_port()
         global switcher
         switcher = "emotion"
         self.manager.transition = SlideTransition(direction="left")
         self.manager.current = "choose"
+
+    def apply_cam_port(self):
+        global cam_port
+        try:
+            cam_port = int(self.txt1.text)
+        except Exception as _:
+            print("Specified cam port is invalid")
+            cam_port = 1
 
 
 class choose(Screen):
@@ -646,7 +656,7 @@ class pathimcam(Screen):
 
     def scan(self, *args):
         try:
-            image = cv2.VideoCapture(0)
+            image = cv2.VideoCapture(cam_port)
             k, frame = image.read()
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             if switcher != "emotion":
@@ -703,7 +713,7 @@ class pathimcam(Screen):
 
     def scan_area(self, *args):
         try:
-            image = cv2.VideoCapture(0)
+            image = cv2.VideoCapture(cam_port)
             k, frame = image.read()
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             if switcher != "emotion":
@@ -763,7 +773,7 @@ class pathimcam(Screen):
             self.manager.current = "errorimcam"
 
     def result(self, *args):
-        image = cv2.VideoCapture(0)
+        image = cv2.VideoCapture(cam_port)
         k, frame = image.read()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         if switcher != "emotion":
@@ -843,7 +853,7 @@ class pathimcam(Screen):
                                 cv2.destroyAllWindows()
 
     def result_area(self, *args):
-        image = cv2.VideoCapture(0)
+        image = cv2.VideoCapture(cam_port)
         k, frame = image.read()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         if switcher != "emotion":
@@ -1249,7 +1259,7 @@ class pathvidcam(Screen):
     def scan(self, *args):
         try:
             retry = True
-            video = cv2.VideoCapture(0)
+            video = cv2.VideoCapture(cam_port)
             height_test = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
             width_test = video.get(cv2.CAP_PROP_FRAME_WIDTH)
             width = str(width_test)
@@ -1338,7 +1348,7 @@ class pathvidcam(Screen):
             capture = cv2.VideoWriter(app + "/ProcessedVideo=).avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
                                       (520, 400))
             retry = True
-            video = cv2.VideoCapture(0)
+            video = cv2.VideoCapture(cam_port)
             if switcher != "emotion":
                 while retry:
                     k, frame_raw = video.read()
@@ -1444,7 +1454,7 @@ class pathvidcam(Screen):
     def result(self, *args):
         try:
             retry = True
-            video = cv2.VideoCapture(0)
+            video = cv2.VideoCapture(cam_port)
             height_test = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
             width_test = video.get(cv2.CAP_PROP_FRAME_WIDTH)
             width = str(width_test)
@@ -1545,7 +1555,7 @@ class pathvidcam(Screen):
     def result_area(self, *args):
         try:
             retry = True
-            video = cv2.VideoCapture(0)
+            video = cv2.VideoCapture(cam_port)
             if switcher != "emotion":
                 while retry:
                     k, frame_raw = video.read()
@@ -2142,36 +2152,8 @@ class error(Screen):
         self.manager.current = "pathim"
 
 
-class premium(Screen):
-
-    def __init__(self, **kwargs):
-        super(premium, self).__init__(**kwargs)
-        layout = FloatLayout(size=(350, 600))
-        # label1 = Label(text="THIS OPTION IS AVAILABLE ONLY IN PREMIUM VERSION", pos_hint={"x": 0.01, "y": 0.15},
-        # color=(0.309, 0.933, 0.078, 4))
-        # but1 = Button(text="BUY PREMIUM", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.36, "y": 0.36},
-        # color=(0.141, 0.054, 0.078, 4), size_hint=(0.3, 0.20))
-        label1 = Label(text="COMING SOON", pos_hint={"x": 0.01, "y": 0.15},
-                       color=(0.309, 0.933, 0.078, 4))
-        but1 = Button(text="COMING SOON", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.36, "y": 0.36},
-                      color=(0.141, 0.054, 0.078, 4), size_hint=(0.3, 0.20))
-        but2 = Button(text="< BACK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.035, "y": 0.85},
-                      color=(0.141, 0.054, 0.078, 4), size_hint=(0.2, 0.1))
-        but2.bind(on_press=self.switch)
-
-        layout.add_widget(label1)
-        layout.add_widget(but1)
-        layout.add_widget(but2)
-        self.add_widget(layout)
-
-    def switch(self, *args):
-        self.manager.transition = SlideTransition(direction="right")
-        self.manager.current = "welcome"
-
-
 Manager = ScreenManager()
 Manager.add_widget(welcome(name="welcome"))
-Manager.add_widget(premium(name="premium"))
 Manager.add_widget(choose(name="choose"))
 Manager.add_widget(pathim(name="pathim"))
 Manager.add_widget(finalim(name="finalim"))
@@ -2195,7 +2177,7 @@ class SquareFace(App):
         return Manager
 
 
-def file():
+def set_config():
     global app
     global app_assets
     if getattr(sys, 'frozen', False):
@@ -2213,5 +2195,5 @@ def file():
 
 
 if __name__ == "__main__":
-    file()
+    set_config()
     SquareFace().run()
