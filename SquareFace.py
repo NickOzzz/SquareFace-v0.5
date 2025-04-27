@@ -16,1083 +16,1006 @@ from kivy.config import Config
 import time
 import numpy
 import sys
-from kivy.clock import Clock
 from keras.models import model_from_json
 import keras.preprocessing.image as ima
 
 
-switcher = ""
-classifier = ""
+area_for_scan = ""
 selected_file_path = ""
-app = ""
-app_assets = ""
+path_to_app = ""
+path_to_app_assets = "/assets"
 cam_port = 0
-screen_to = "choose"
+current_screen = "ChooseInputScreen"
+list_of_emotions = ["angry", "disgusted", "fearful", "happy", "sad", "surprised", "neutral"]
+invalid_file_extensions = ["peg", "jpg", "gif", "png", "iff", "psd", "pdf", "eps", "ndd", ".ai", "raw"]
 
 
-class welcome(Screen):
+def get_body_classifier():
+    if area_for_scan == "face":
+        return cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
+    if area_for_scan == "body":
+        return cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_fullbody.xml")
+    if area_for_scan == "eye":
+        return cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_eye.xml")
+    if area_for_scan == "smile":
+        return cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_smile.xml")
+    raise Exception("No body classifier found for " + area_for_scan)
+
+
+class WelcomeScreen(Screen):
     def __init__(self, **kwargs):
-        super(welcome, self).__init__(**kwargs)
+        super(WelcomeScreen, self).__init__(**kwargs)
         layout = FloatLayout(size=(350, 600))
 
-        label1 = Label(text="WELCOME TO SQUARE FACE", pos_hint={"x": -0.003, "y": 0.20}, color=(0.309, 0.933, 0.078, 4))
-        label2 = Label(text="CHOOSE WHAT YOU WOULD LIKE TO DETECT OR RECOGNIZE", pos_hint={"x": -0.004, "y": 0.123},
+        welcome_label = Label(text="WELCOME TO SQUARE FACE", pos_hint={"x": -0.003, "y": 0.20}, color=(0.309, 0.933, 0.078, 4))
+        choose_label = Label(text="CHOOSE WHAT YOU WOULD LIKE TO DETECT OR RECOGNIZE", pos_hint={"x": -0.004, "y": 0.123},
                        color=(0.309, 0.933, 0.078, 4))
-        but1 = Button(text="FACE", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.04, "y": 0.38},
+        choose_face_button = Button(text="FACE", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.04, "y": 0.38},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.20, 0.15))
-        but1.bind(on_press=self.switchtoface)
-        but2 = Button(text="BODY", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.28, "y": 0.38},
+        choose_face_button.bind(on_press=self.switch_to_face_screen)
+        choose_body_button = Button(text="BODY", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.28, "y": 0.38},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.20, 0.15))
-        but2.bind(on_press=self.switchtobody)
-        but3 = Button(text="EYE", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.52, "y": 0.38},
+        choose_body_button.bind(on_press=self.switch_to_body_screen)
+        choose_eye_button = Button(text="EYE", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.52, "y": 0.38},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.20, 0.15))
-        but3.bind(on_press=self.switchtoeye)
-        but4 = Button(text="SMILE", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.76, "y": 0.38},
+        choose_eye_button.bind(on_press=self.switch_to_eye_screen)
+        choose_smile_button = Button(text="SMILE", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.76, "y": 0.38},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.20, 0.15))
-        but4.bind(on_press=self.switchtosmile)
-        but5 = Button(text="EMOTION", background_color=(0.309, 0.933, 0.078, 4),
+        choose_smile_button.bind(on_press=self.switch_to_smile_screen)
+        choose_emotion_button = Button(text="EMOTION", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.05, "y": 0.10},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20), font_size="13sp")
-        but5.bind(on_press=self.switchtoemotion)
-        label3 = Label(text="SPECIFY YOUR CAMERA PORT IF NEEDED (Default is 0)",
+        choose_emotion_button.bind(on_press=self.switch_to_emotion_screen)
+        camera_port_label = Label(text="SPECIFY YOUR CAMERA PORT IF NEEDED (Default is 0)",
                        pos_hint={"x": 0.14, "y": -0.25},
                        color=(0.309, 0.933, 0.078, 4))
-        self.txt1 = TextInput(text="0",
-                              multiline=False,
-                              size_hint=(0.55, .07),
-                              pos_hint={'x': 0.37, 'y': 0.15},
-                              background_color=(0.309, 0.933, 0.078, 4))
-        img = Image(source=app_assets + "assets/logo.png", size_hint=(0.15, .3), pos_hint={"x": 0.423, "y": 0.71})
+        self.cam_port_input = TextInput(text="0",
+                                        multiline=False,
+                                        size_hint=(0.55, .07),
+                                        pos_hint={'x': 0.37, 'y': 0.15},
+                                        background_color=(0.309, 0.933, 0.078, 4))
+        logo_image = Image(source=path_to_app_assets + "/logo.png", size_hint=(0.15, .3), pos_hint={"x": 0.423, "y": 0.71})
 
-        layout.add_widget(label1)
-        layout.add_widget(label2)
-        layout.add_widget(label3)
-        layout.add_widget(but1)
-        layout.add_widget(but2)
-        layout.add_widget(but3)
-        layout.add_widget(but4)
-        layout.add_widget(but5)
-        layout.add_widget(img)
-        layout.add_widget(self.txt1)
+        layout.add_widget(welcome_label)
+        layout.add_widget(choose_label)
+        layout.add_widget(camera_port_label)
+        layout.add_widget(choose_face_button)
+        layout.add_widget(choose_body_button)
+        layout.add_widget(choose_eye_button)
+        layout.add_widget(choose_smile_button)
+        layout.add_widget(choose_emotion_button)
+        layout.add_widget(logo_image)
+        layout.add_widget(self.cam_port_input)
         self.add_widget(layout)
 
-    def switchtoface(self, *args):
-        self.apply_cam_port()
-        global switcher
-        switcher = "face"
+    def switch_to_face_screen(self, *args):
+        global area_for_scan
+        area_for_scan = "face"
+        self._apply_cam_port()
         self.manager.transition = SlideTransition(direction="left")
-        self.manager.current = "choose"
+        self.manager.current = "ChooseInputScreen"
 
-    def switchtobody(self, *args):
-        self.apply_cam_port()
-        global switcher
-        switcher = "body"
+    def switch_to_body_screen(self, *args):
+        global area_for_scan
+        area_for_scan = "body"
+        self._apply_cam_port()
         self.manager.transition = SlideTransition(direction="left")
-        self.manager.current = "choose"
+        self.manager.current = "ChooseInputScreen"
 
-    def switchtoeye(self, *args):
-        self.apply_cam_port()
-        global switcher
-        switcher = "eye"
+    def switch_to_eye_screen(self, *args):
+        global area_for_scan
+        area_for_scan = "eye"
+        self._apply_cam_port()
         self.manager.transition = SlideTransition(direction="left")
-        self.manager.current = "choose"
+        self.manager.current = "ChooseInputScreen"
 
-    def switchtosmile(self, *args):
-        self.apply_cam_port()
-        global switcher
-        switcher = "smile"
+    def switch_to_smile_screen(self, *args):
+        global area_for_scan
+        area_for_scan = "smile"
+        self._apply_cam_port()
         self.manager.transition = SlideTransition(direction="left")
-        self.manager.current = "choose"
+        self.manager.current = "ChooseInputScreen"
 
-    def switchtoemotion(self, *args):
-        self.apply_cam_port()
-        global switcher
-        switcher = "emotion"
+    def switch_to_emotion_screen(self, *args):
+        global area_for_scan
+        area_for_scan = "emotion"
+        self._apply_cam_port()
         self.manager.transition = SlideTransition(direction="left")
-        self.manager.current = "choose"
+        self.manager.current = "ChooseInputScreen"
 
-    def apply_cam_port(self):
+    def _apply_cam_port(self):
         global cam_port
         try:
-            cam_port = int(self.txt1.text)
-        except Exception as _:
-            print("Specified cam port is invalid")
-            cam_port = 1
+            cam_port = int(self.cam_port_input.text)
+        except Exception as e:
+            print("Error:" + str(e))
+            cam_port = 0
 
 
-class choose(Screen):
+class ChooseInputScreen(Screen):
     def __init__(self, **kwargs):
-        super(choose, self).__init__(**kwargs)
+        super(ChooseInputScreen, self).__init__(**kwargs)
         layout = FloatLayout(size=(350, 600))
 
-        label1 = Label(text="CHOOSE TYPE OF FILE", pos_hint={"x": -0.003, "y": 0.27}, color=(0.309, 0.933, 0.078, 4))
-        but1 = Button(text="VIDEO", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.20, "y": 0.15},
+        choose_type_label = Label(text="CHOOSE TYPE OF FILE", pos_hint={"x": -0.003, "y": 0.27}, color=(0.309, 0.933, 0.078, 4))
+        choose_video_button = Button(text="VIDEO", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.20, "y": 0.15},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20))
-        but1.bind(on_press=self.switch4)
-        but2 = Button(text="VIDEO FROM YOUR CAMERA", background_color=(0.309, 0.933, 0.078, 4),
+        choose_video_button.bind(on_press=self.switch_to_video_selection_screen)
+        choose_video_from_camera_button = Button(text="VIDEO FROM YOUR CAMERA", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.53, "y": 0.15},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20), font_size="12sp")
-        but2.bind(on_press=self.switch5)
-        but3 = Button(text="IMAGE", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.20, "y": 0.45},
+        choose_video_from_camera_button.bind(on_press=self.switch_to_cam_video_reading_screen)
+        choose_image_button = Button(text="IMAGE", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.20, "y": 0.45},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20))
-        but3.bind(on_press=self.switch2)
-        but4 = Button(text="IMAGE FROM YOUR CAMERA", background_color=(0.309, 0.933, 0.078, 4),
+        choose_image_button.bind(on_press=self.switch_to_image_selection_screen)
+        choose_image_from_camera_button = Button(text="IMAGE FROM YOUR CAMERA", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.53, "y": 0.45},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20), font_size="12sp")
-        but4.bind(on_press=self.switch3)
-        but5 = Button(text="< BACK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.035, "y": 0.85},
+        choose_image_from_camera_button.bind(on_press=self.switch_to_cam_image_reading_screen)
+        go_back_button = Button(text="< BACK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.035, "y": 0.85},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.2, 0.1))
-        but5.bind(on_press=self.switch)
+        go_back_button.bind(on_press=self.switch_to_welcome_screen)
 
-        layout.add_widget(label1)
-        layout.add_widget(but1)
-        layout.add_widget(but2)
-        layout.add_widget(but3)
-        layout.add_widget(but4)
-        layout.add_widget(but5)
+        layout.add_widget(choose_type_label)
+        layout.add_widget(choose_video_button)
+        layout.add_widget(choose_video_from_camera_button)
+        layout.add_widget(choose_image_button)
+        layout.add_widget(choose_image_from_camera_button)
+        layout.add_widget(go_back_button)
         self.add_widget(layout)
 
-    def switch(self, *args):
+    def switch_to_welcome_screen(self, *args):
         self.manager.transition = SlideTransition(direction="right")
-        self.manager.current = "welcome"
+        self.manager.current = "WelcomeScreen"
 
-    def switch2(self, *args):
+    def switch_to_image_selection_screen(self, *args):
         self.manager.transition = SlideTransition(direction="left")
-        self.manager.current = "pathim"
+        self.manager.current = "ChooseImageScreen"
 
-    def switch3(self, *args):
+    def switch_to_cam_image_reading_screen(self, *args):
         self.manager.transition = SlideTransition(direction="left")
-        self.manager.current = "pathimcam"
+        self.manager.current = "ChooseImageCamInputScreen"
 
-    def switch4(self, *args):
+    def switch_to_video_selection_screen(self, *args):
         self.manager.transition = SlideTransition(direction="left")
-        self.manager.current = "pathvid"
+        self.manager.current = "ChooseVideoScreen"
 
-    def switch5(self, *args):
+    def switch_to_cam_video_reading_screen(self, *args):
         self.manager.transition = SlideTransition(direction="left")
-        self.manager.current = "pathvidcam"
+        self.manager.current = "ChooseVideoCamInputScreen"
 
 
-class pathim(Screen):
+class ChooseImageScreen(Screen):
     def __init__(self, **kwargs):
-        super(pathim, self).__init__(**kwargs)
+        super(ChooseImageScreen, self).__init__(**kwargs)
         layout = FloatLayout(size=(350, 600))
         self.popup_layout = FloatLayout(size=(175, 300))
 
-        label4 = Label(text="IMAGE",
+        title_label = Label(text="IMAGE",
                        pos_hint={"x": 0.194, "y": 0.83},
                        color=(0.309, 0.933, 0.078, 4), size_hint=(0.62, .07))
-        label3 = Label(text="WRITE FULL PATH TO AN IMAGE (i.e. /Users/joe/img.png) OR PRESS FILE ICON TO CHOOSE FILE", pos_hint={"x": 0.01, "y": 0.24},
+        path_to_image_label = Label(text="WRITE FULL PATH TO AN IMAGE (i.e. /Users/joe/img.png) OR PRESS FILE ICON TO CHOOSE FILE",
+                       pos_hint={"x": 0.01, "y": 0.24},
                        color=(0.309, 0.933, 0.078, 4))
-        self.txt1 = TextInput(hint_text='PATH TO AN IMAGE',
-                              multiline=False,
-                              size_hint=(0.55, .07),
-                              pos_hint={'x': 0.2, 'y': 0.57},
-                              background_color=(0.309, 0.933, 0.078, 4))
-        but1 = Button(text="SAVE FULL IMAGE >", background_color=(0.309, 0.933, 0.078, 4),
+        self.path_to_image_input = TextInput(hint_text='PATH TO AN IMAGE',
+                                             multiline=False,
+                                             size_hint=(0.55, .07),
+                                             pos_hint={'x': 0.2, 'y': 0.57},
+                                             background_color=(0.309, 0.933, 0.078, 4))
+        save_image_button = Button(text="SAVE FULL IMAGE >", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.53, "y": 0.33},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20), font_size="12.5sp")
-        but1.bind(on_press=self.scan)
-        but3 = Button(text="SHOW RESULT", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.20, "y": 0.33},
+        save_image_button.bind(on_press=self.scan_and_save_result)
+        save_image_cropped_result_button = Button(text="SAVE ONLY DETECTED AREAS >",
+                                                  background_color=(0.309, 0.933, 0.078, 4),
+                                                  pos_hint={"x": 0.53, "y": 0.08},
+                                                  color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20),
+                                                  font_size="12.5sp")
+        save_image_cropped_result_button.bind(on_press=self.scan_and_save_cropped_result)
+        show_image_result_button = Button(text="SHOW RESULT", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.20, "y": 0.33},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20), font_size="12.5sp")
-        but3.bind(on_press=self.result)
-        but4 = Button(text="SHOW ONLY DETECTED AREAS", background_color=(0.309, 0.933, 0.078, 4),
+        show_image_result_button.bind(on_press=self.scan_and_show_result)
+        show_image_cropped_result_button = Button(text="SHOW ONLY DETECTED AREAS", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.20, "y": 0.08},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20), font_size="12.5sp")
-        but4.bind(on_press=self.result_area)
-        but5 = Button(text="SAVE ONLY DETECTED AREAS >", background_color=(0.309, 0.933, 0.078, 4),
-                      pos_hint={"x": 0.53, "y": 0.08},
-                      color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20), font_size="12.5sp")
-        but5.bind(on_press=self.scan_area)
-        but2 = Button(text="< BACK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.035, "y": 0.85},
-                      color=(0.141, 0.054, 0.078, 4), size_hint=(0.2, 0.1))
-        but2.bind(on_press=self.switch)
-        file_finder = Button(text="", background_normal=app_assets + "assets/file.png", background_down=app_assets + "assets/file.png", pos_hint={"x": 0.75, "y": 0.56}, size_hint=(0.075, 0.095))
-        file_finder.bind(on_press=self.pops)
-        self.file_chooser = FileChooserIconView(dirselect=True)
-        but_close_popup = Button(text="CANCEL", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.005, "y": 1.015},
+        show_image_cropped_result_button.bind(on_press=self.scan_and_show_cropped_result)
+
+        open_file_finder_button = Button(text="", background_normal=path_to_app_assets + "/file.png", background_down=path_to_app_assets + "/file.png", pos_hint={"x": 0.75, "y": 0.56}, size_hint=(0.075, 0.095))
+        open_file_finder_button.bind(on_press=self.open_file_chooser)
+        self.file_chooser_icon_view = FileChooserIconView(dirselect=True)
+        close_cancel_file_finder_button = Button(text="CANCEL", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.005, "y": 1.015},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.15, 0.05))
-        but_ok_popup = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4),
-                                 pos_hint={"x": 0.84, "y": 1.015},
-                                 color=(0.141, 0.054, 0.078, 4), size_hint=(0.15, 0.05))
-        but_close_popup.bind(on_press=self.close)
-        but_ok_popup.bind(on_press=self.choose_file)
-        layout.add_widget(self.txt1)
-        layout.add_widget(label3)
-        layout.add_widget(label4)
-        layout.add_widget(but1)
-        layout.add_widget(but2)
-        layout.add_widget(but3)
-        layout.add_widget(but4)
-        layout.add_widget(but5)
-        layout.add_widget(file_finder)
-        self.popup_layout.add_widget(self.file_chooser)
-        self.popup_layout.add_widget(but_close_popup)
-        self.popup_layout.add_widget(but_ok_popup)
+        close_cancel_file_finder_button.bind(on_press=self.close_file_chooser)
+        close_apply_file_finder_button = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4),
+                              pos_hint={"x": 0.84, "y": 1.015},
+                              color=(0.141, 0.054, 0.078, 4), size_hint=(0.15, 0.05))
+        close_apply_file_finder_button.bind(on_press=self.apply_file_selection)
+
+        go_back_button = Button(text="< BACK", background_color=(0.309, 0.933, 0.078, 4),
+                                pos_hint={"x": 0.035, "y": 0.85},
+                                color=(0.141, 0.054, 0.078, 4), size_hint=(0.2, 0.1))
+        go_back_button.bind(on_press=self.switch_to_choose_screen)
+
+        layout.add_widget(self.path_to_image_input)
+        layout.add_widget(path_to_image_label)
+        layout.add_widget(title_label)
+        layout.add_widget(save_image_button)
+        layout.add_widget(go_back_button)
+        layout.add_widget(show_image_result_button)
+        layout.add_widget(show_image_cropped_result_button)
+        layout.add_widget(save_image_cropped_result_button)
+        layout.add_widget(open_file_finder_button)
+        self.popup_layout.add_widget(self.file_chooser_icon_view)
+        self.popup_layout.add_widget(close_cancel_file_finder_button)
+        self.popup_layout.add_widget(close_apply_file_finder_button)
         self.add_widget(layout)
-        self.model = ""
-        self.popup = Popup(title="select your file", content=self.popup_layout)
-        # self.event = ""
 
-    # def on_enter(self, *args):
-    #    global screen_to
-    #    try:
-    #        self.event = Clock.schedule_interval(self.check, 0.5)
-    #        os.listdir(app + "TO_PROCESS")
-    #        os.listdir(app + "PROCESSED")
-    #    except Exception as _:
-    #        screen_to = "pathim"
-    #        self.manager.transition = SlideTransition(direction="down")
-    #        self.manager.current = "no_folder_error"
+        self.select_file_popup = Popup(title="Select your file", content=self.popup_layout)
 
-    # def on_leave(self, *args):
-    #    self.event.cancel()
+        self.loaded_model = ""
 
     def on_enter(self, *args):
-        global app
-        global app_assets
-        if getattr(sys, 'frozen', False):
-            app = str(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(sys.executable))))) + "/"
-            app_assets = str(os.path.dirname(sys.executable)) + "/"
-        elif __file__:
-            app = str(os.path.dirname(__file__)) + "/"
-            app_assets = str(os.path.dirname(__file__)) + "/"
-        self.model = model_from_json(open(app_assets + "assets/neuralnet.json", "r").read())
-        self.model.load_weights(app_assets + "assets/weights.h5")
+        self.loaded_model = model_from_json(open(path_to_app_assets + "/neuralnet.json", "r").read())
+        self.loaded_model.load_weights(path_to_app_assets + "/weights.h5")
 
-    def pops(self, *args):
-        self.popup.open()
+    def open_file_chooser(self, *args):
+        self.select_file_popup.open()
 
-    def close(self, *args):
-        self.popup.dismiss()
+    def close_file_chooser(self, *args):
+        self.select_file_popup.dismiss()
 
-    def choose_file(self, *args):
-        try:
-            self.txt1.text = self.file_chooser.selection[0]
-            self.popup.dismiss()
-        except Exception as _:
-            self.txt1.text = ""
-            self.popup.dismiss()
+    def apply_file_selection(self, *args):
+        if len(self.file_chooser_icon_view.selection) > 0:
+            self.path_to_image_input.text = self.file_chooser_icon_view.selection[0]
+            self.select_file_popup.dismiss()
+            return
+        self.path_to_image_input.text = ""
+        self.select_file_popup.dismiss()
 
-    def switch(self, *args):
+    def switch_to_choose_screen(self, *args):
         self.manager.transition = SlideTransition(direction="right")
-        self.manager.current = "choose"
+        self.manager.current = "ChooseInputScreen"
 
-    def scan(self, *args):
-        app = self.txt1.text
+    def scan_and_save_result(self, *args):
+        path_to_image = self.path_to_image_input.text
+        try:
+            image = cv2.imread(path_to_image)
+            gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            if area_for_scan != "emotion":
+                self._scan_and_save_body_part(path_to_image, image, gray_image)
+                return
+            self._scan_and_save_emotion(path_to_image, image, gray_image)
+        except Exception as e:
+            print("Error: " + str(e))
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "ErrorImageSelectionScreen"
+
+    def scan_and_save_cropped_result(self, *args):
+        path_to_image = self.path_to_image_input.text
+        try:
+            image = cv2.imread(path_to_image)
+            gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            if area_for_scan != "emotion":
+                self._scan_and_save_body_part_cropped(image, gray_image, path_to_image)
+                return
+            self._scan_and_save_emotion_cropped(image, gray_image, path_to_image)
+        except Exception as e:
+            print("Error: " + str(e))
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "ErrorImageSelectionScreen"
+
+    def scan_and_show_result(self, *args):
+        app = self.path_to_image_input.text
         try:
             image = cv2.imread(app)
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            if switcher != "emotion":
-                global classifier
-                if switcher == "face":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                elif switcher == "body":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_fullbody.xml")
-                elif switcher == "eye":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_eye.xml")
-                elif switcher == "smile":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
-
-                detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-                if detection == ():
-                    self.manager.transition = SlideTransition(direction="down")
-                    self.manager.current = "nodetections"
-                else:
-                    for (x, y, z, w) in detection:
-                        cv2.rectangle(image, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
-                    cv2.imwrite(os.path.dirname(app) + "/ProcessedImage=).png", image)
-                    self.manager.transition = SlideTransition(direction="left")
-                    self.manager.current = "finalim"
-            elif switcher == "emotion":
-                face_recogn = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                detection = face_recogn.detectMultiScale(image, scaleFactor=1.2, minNeighbors=5)
-                for (x, y, z, w) in detection:
-                    cv2.rectangle(image, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
-                    cut_gray = gray[y: y + z, x: x + w]
-                    resized_cut_gray = cv2.resize(cut_gray, (48, 48))
-                    array_gray_im = ima.img_to_array(resized_cut_gray)
-                    array_gray_im_expanded = numpy.expand_dims(array_gray_im, axis=0)
-                    array_gray_im_expanded /= 255
-                    prediction = self.model.predict(array_gray_im_expanded)
-                    final_prediction = numpy.argmax(prediction[0])
-                    list_of_emotions = ['angry', 'disgusted', 'fearful', 'happy', 'sad', 'surprised', 'neutral']
-                    result = list_of_emotions[final_prediction]
-                    if z >= 210 and w >= 210:
-                        cv2.putText(image, result, (int(x + 5), int(y + 45)), cv2.FONT_HERSHEY_SIMPLEX, 1.4,
-                                    (0, 0, 255), 2)
-                    else:
-                        cv2.putText(image, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.35,
-                                    (0, 0, 255), 1)
-                cv2.imwrite(os.path.dirname(app) + "/ProcessedImage=).png", image)
-                self.manager.transition = SlideTransition(direction="left")
-                self.manager.current = "finalim"
+            gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            if area_for_scan != "emotion":
+                self._scan_and_show_body_part_result(image, gray_image)
+                return
+            self._scan_and_show_emotion_result(image, gray_image)
         except Exception as _:
             self.manager.transition = SlideTransition(direction="down")
-            self.manager.current = "error"
+            self.manager.current = "ErrorImageSelectionScreen"
 
-    def scan_area(self, *args):
-        app = self.txt1.text
+    def scan_and_show_cropped_result(self, *args):
+        path_to_image = self.path_to_image_input.text
         try:
-            image = cv2.imread(app)
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            if switcher != "emotion":
-                global classifier
-                if switcher == "face":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                elif switcher == "body":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_fullbody.xml")
-                elif switcher == "eye":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_eye.xml")
-                elif switcher == "smile":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
-                detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-                picker = 0
-                if detection == ():
-                    self.manager.transition = SlideTransition(direction="down")
-                    self.manager.current = "nodetections"
-                else:
-                    for (x, y, z, w) in detection:
-                        picker += 1
-                        image_fin = image[y: y + z, x: x + w]
-                        image_fin = cv2.resize(image_fin, (520, 400))
-                        cv2.imwrite(os.path.dirname(app) + "/ProcessedImage=)" + str(picker) + ".png", image_fin)
-                    self.manager.transition = SlideTransition(direction="left")
-                    self.manager.current = "finalim"
-            elif switcher == "emotion":
-                face_recogn = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                detection = face_recogn.detectMultiScale(image, scaleFactor=1.2, minNeighbors=5)
-                if detection == ():
-                    self.manager.transition = SlideTransition(direction="down")
-                    self.manager.current = "nodetections"
-                else:
-                    picker = 0
-                    for (x, y, z, w) in detection:
-                        picker += 1
-                        image_f = image[y: y + z, x: x + w]
-                        image_final = cv2.resize(image_f, (520, 400))
-                        cut_gray = gray[y: y + z, x: x + w]
-                        resized_cut_gray = cv2.resize(cut_gray, (48, 48))
-                        array_gray_im = ima.img_to_array(resized_cut_gray)
-                        array_gray_im_expanded = numpy.expand_dims(array_gray_im, axis=0)
-                        array_gray_im_expanded /= 255
-                        prediction = self.model.predict(array_gray_im_expanded)
-                        final_prediction = numpy.argmax(prediction[0])
-                        list_of_emotions = ['angry', 'disgusted', 'fearful', 'happy', 'sad', 'surprised', 'neutral']
-                        result = list_of_emotions[final_prediction]
-                        cv2.putText(image_final, result, (10, 45),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    1.4,
-                                    (0, 0, 255), 2)
-                        cv2.imwrite(os.path.dirname(app) + "/ProcessedImage=)" + str(picker) + ".png", image_final)
-                    self.manager.transition = SlideTransition(direction="left")
-                    self.manager.current = "finalim"
-        except Exception as _:
+            image = cv2.imread(path_to_image)
+            gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            if area_for_scan != "emotion":
+                self._scan_and_show_body_part_cropped_result(image, gray_image)
+                return
+            self._scan_and_show_emotion_cropped_result(image, gray_image)
+        except Exception as e:
+            print("Error: " + str(e))
             self.manager.transition = SlideTransition(direction="down")
-            self.manager.current = "error"
+            self.manager.current = "ErrorImageSelectionScreen"
 
-    def result(self, *args):
-        app = self.txt1.text
-        try:
-            image = cv2.imread(app)
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            if switcher != "emotion":
-                global classifier
-                if switcher == "face":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                elif switcher == "body":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_fullbody.xml")
-                elif switcher == "eye":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_eye.xml")
-                elif switcher == "smile":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
-                detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-                retry = True
-                counter = 0
-                if detection == ():
-                    self.manager.transition = SlideTransition(direction="down")
-                    self.manager.current = "nodetections"
-                else:
-                    for (x, y, z, w) in detection:
-                        counter += 1
-                        cv2.rectangle(image, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
-                        if counter == 1:
-                            cv2.putText(image, "PRESS SPACE TWICE TO CLOSE THE IMAGE", (10, 40),
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        0.35,
-                                        (20, 226, 20), 1)
-                    cv2.imshow("PREVIEW", image)
-                    cv2.namedWindow("PREVIEW")
-                    cv2.waitKey(0)
-                    while retry:
-                        for event in pygame.event.get():
-                            if event.type == pygame.KEYDOWN:
-                                if event.key == pygame.K_SPACE:
-                                    retry = False
-                                    cv2.destroyAllWindows()
-            elif switcher == "emotion":
-                face_recogn = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                detection = face_recogn.detectMultiScale(image, scaleFactor=1.2, minNeighbors=5)
-                retry = True
-                counter = 0
-                if detection == ():
-                    self.manager.transition = SlideTransition(direction="down")
-                    self.manager.current = "nodetections"
-                else:
-                    for (x, y, z, w) in detection:
-                        counter += 1
-                        cv2.rectangle(image, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
-                        if counter == 1:
-                            cv2.putText(image, "PRESS SPACE TWICE TO CLOSE THE IMAGE", (10, 40),
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        0.35,
-                                        (20, 226, 20), 1)
-                        cut_gray = gray[y: y + z, x: x + w]
-                        resized_cut_gray = cv2.resize(cut_gray, (48, 48))
-                        array_gray_im = ima.img_to_array(resized_cut_gray)
-                        array_gray_im_expanded = numpy.expand_dims(array_gray_im, axis=0)
-                        array_gray_im_expanded /= 255
-                        prediction = self.model.predict(array_gray_im_expanded)
-                        final_prediction = numpy.argmax(prediction[0])
-                        list_of_emotions = ['angry', 'disgusted', 'fearful', 'happy', 'sad', 'surprised', 'neutral']
-                        result = list_of_emotions[final_prediction]
-                        if z >= 210 and w >= 210:
-                            cv2.putText(image, result, (int(x + 5), int(y + 45)), cv2.FONT_HERSHEY_SIMPLEX, 1.4,
-                                        (0, 0, 255), 2)
-                        else:
-                            cv2.putText(image, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.35,
-                                        (0, 0, 255), 1)
-                    cv2.imshow("PREVIEW", image)
-                    cv2.namedWindow("PREVIEW")
-                    cv2.waitKey(0)
-                    while retry:
-                        for event in pygame.event.get():
-                            if event.type == pygame.KEYDOWN:
-                                if event.key == pygame.K_SPACE:
-                                    retry = False
-                                    cv2.destroyAllWindows()
-        except Exception as _:
+    def _scan_and_save_body_part(self, path_to_image, image, gray_image):
+        body_classifier = get_body_classifier()
+        detected_areas = body_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+        if detected_areas == ():
             self.manager.transition = SlideTransition(direction="down")
-            self.manager.current = "error"
+            self.manager.current = "NoDetectionsIdentifiedOnImageScreen"
+        else:
+            for (x, y, z, w) in detected_areas:
+                cv2.rectangle(image, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+            cv2.imwrite(os.path.dirname(path_to_image) + "/ProcessedImage.png", image)
+            self.manager.transition = SlideTransition(direction="left")
+            self.manager.current = "ProcessedScreen"
 
-    def result_area(self, *args):
-        app = self.txt1.text
-        try:
-            image = cv2.imread(app)
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            if switcher != "emotion":
-                global classifier
-                if switcher == "face":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                elif switcher == "body":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_fullbody.xml")
-                elif switcher == "eye":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_eye.xml")
-                elif switcher == "smile":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
-                detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-                retry = True
-                counter = 0
-                tracker = 0
-                counter_of_images = []
-                for _ in detection:
-                    counter += 1
-                    counter_of_images.append(counter)
-                if detection == ():
-                    self.manager.transition = SlideTransition(direction="down")
-                    self.manager.current = "nodetections"
-                else:
-                    for (x, y, z, w) in detection:
-                        final_val = counter_of_images[-1]
-                        value = counter_of_images[tracker]
-                        tracker += 1
-                        image_fin = image[y: y + z, x: x + w]
-                        image_fin = cv2.resize(image_fin, (520, 400))
-                        if value == final_val:
-                            cv2.putText(image_fin, "PRESS SPACE TWICE TO CLOSE THE IMAGE", (10, 11),
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        0.30,
-                                        (20, 226, 20), 1)
-                        else:
-                            cv2.putText(image_fin, "PRESS SPACE TO GET TO THE NEXT IMAGE", (10, 11),
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        0.30,
-                                        (20, 226, 20), 1)
-                        cv2.imshow("PREVIEW", image_fin)
-                        cv2.namedWindow("PREVIEW")
-                        cv2.waitKey(0)
-                    while retry:
-                        for event in pygame.event.get():
-                            if event.type == pygame.KEYDOWN:
-                                if event.key == pygame.K_SPACE:
-                                    retry = False
-                                    cv2.destroyWindow("PREVIEW")
-            elif switcher == "emotion":
-                face_recogn = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                detection = face_recogn.detectMultiScale(image, scaleFactor=1.2, minNeighbors=5)
-                if detection == ():
-                    self.manager.transition = SlideTransition(direction="down")
-                    self.manager.current = "nodetections"
-                else:
-                    retry = True
-                    counter = 0
-                    tracker = 0
-                    counter_of_images = []
-                    for _ in detection:
-                        counter += 1
-                        counter_of_images.append(counter)
-                    picker = 0
-                    for (x, y, z, w) in detection:
-                        picker += 1
-                        image_f = image[y: y + z, x: x + w]
-                        image_final = cv2.resize(image_f, (520, 400))
-                        cut_gray = gray[y: y + z, x: x + w]
-                        resized_cut_gray = cv2.resize(cut_gray, (48, 48))
-                        array_gray_im = ima.img_to_array(resized_cut_gray)
-                        array_gray_im_expanded = numpy.expand_dims(array_gray_im, axis=0)
-                        array_gray_im_expanded /= 255
-                        prediction = self.model.predict(array_gray_im_expanded)
-                        final_prediction = numpy.argmax(prediction[0])
-                        list_of_emotions = ['angry', 'disgusted', 'fearful', 'happy', 'sad', 'surprised', 'neutral']
-                        result = list_of_emotions[final_prediction]
-                        cv2.putText(image_final, result, (10, 50),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    1.4,
-                                    (0, 0, 255), 2)
-                        final_val = counter_of_images[-1]
-                        value = counter_of_images[tracker]
-                        tracker += 1
-                        if value == final_val:
-                            cv2.putText(image_final, "PRESS SPACE TWICE TO CLOSE THE IMAGE", (10, 11),
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        0.30,
-                                        (20, 226, 20), 1)
-                        else:
-                            cv2.putText(image_final, "PRESS SPACE TO GET TO THE NEXT IMAGE", (10, 11),
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        0.30,
-                                        (20, 226, 20), 1)
-                        cv2.imshow("PREVIEW", image_final)
-                        cv2.namedWindow("PREVIEW")
-                        cv2.waitKey(0)
-                    while retry:
-                        for event in pygame.event.get():
-                            if event.type == pygame.KEYDOWN:
-                                if event.key == pygame.K_SPACE:
-                                    retry = False
-                                    cv2.destroyWindow("PREVIEW")
-        except Exception as _:
+    def _scan_and_save_emotion(self, path_to_image, image, gray_image):
+        face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
+        detected_areas = face_classifier.detectMultiScale(image, scaleFactor=1.2, minNeighbors=5)
+        for (x, y, z, w) in detected_areas:
+            cv2.rectangle(image, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+            cut_gray_image = gray_image[y: y + z, x: x + w]
+            resized_cut_gray_image = cv2.resize(cut_gray_image, (48, 48))
+            gray_image_array = ima.img_to_array(resized_cut_gray_image)
+            gray_image_array_expanded = numpy.expand_dims(gray_image_array, axis=0)
+            gray_image_array_expanded /= 255
+            prediction = self.loaded_model.predict(gray_image_array_expanded)
+            final_prediction = numpy.argmax(prediction[0])
+            result = list_of_emotions[final_prediction]
+            if z >= 210 and w >= 210:
+                cv2.putText(image, result, (int(x + 5), int(y + 45)), cv2.FONT_HERSHEY_SIMPLEX, 1.4,
+                            (0, 0, 255), 2)
+                continue
+            cv2.putText(image, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.35,
+                        (0, 0, 255), 1)
+
+        cv2.imwrite(os.path.dirname(path_to_image) + "/ProcessedImage.png", image)
+        self.manager.transition = SlideTransition(direction="left")
+        self.manager.current = "ProcessedScreen"
+
+    def _scan_and_save_body_part_cropped(self, image, gray_image, path_to_image):
+        body_classifier = get_body_classifier()
+        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+        picker = 0
+        if detection == ():
             self.manager.transition = SlideTransition(direction="down")
-            self.manager.current = "error"
+            self.manager.current = "NoDetectionsIdentifiedOnImageScreen"
+        else:
+            for (x, y, z, w) in detection:
+                picker += 1
+                image_cropped = image[y: y + z, x: x + w]
+                image_result = cv2.resize(image_cropped, (520, 400))
+                cv2.imwrite(os.path.dirname(path_to_image) + "/ProcessedImage" + str(picker) + ".png", image_result)
+            self.manager.transition = SlideTransition(direction="left")
+            self.manager.current = "ProcessedScreen"
+
+    def _scan_and_save_emotion_cropped(self, image, gray_image, path_to_image):
+        face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
+        detection = face_classifier.detectMultiScale(image, scaleFactor=1.2, minNeighbors=5)
+
+        if detection == ():
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "NoDetectionsIdentifiedOnImageScreen"
+            return
+
+        image_count = 0
+        for (x, y, z, w) in detection:
+            image_count += 1
+            image_cropped = image[y: y + z, x: x + w]
+            image_cropped_final = cv2.resize(image_cropped, (520, 400))
+            cut_gray = gray_image[y: y + z, x: x + w]
+            resized_cut_gray = cv2.resize(cut_gray, (48, 48))
+            image_array_gray = ima.img_to_array(resized_cut_gray)
+            image_array_gray_expanded = numpy.expand_dims(image_array_gray, axis=0)
+            image_array_gray_expanded /= 255
+            prediction = self.loaded_model.predict(image_array_gray_expanded)
+            final_prediction = numpy.argmax(prediction[0])
+            result = list_of_emotions[final_prediction]
+            cv2.putText(image_cropped_final, result, (10, 45),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1.4,
+                        (0, 0, 255), 2)
+            cv2.imwrite(os.path.dirname(path_to_image) + "/ProcessedImage" + str(image_count) + ".png",
+                        image_cropped_final)
+        self.manager.transition = SlideTransition(direction="left")
+        self.manager.current = "ProcessedScreen"
+
+    def _scan_and_show_body_part_result(self, image, gray_image):
+        body_classifier = get_body_classifier()
+        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+        detection_counter = 0
+
+        if detection == ():
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "NoDetectionsIdentifiedOnImageScreen"
+            return
+
+        for (x, y, z, w) in detection:
+            cv2.rectangle(image, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+            if detection_counter == 0:
+                cv2.putText(image, "PRESS SPACE TWICE TO CLOSE THE IMAGE", (10, 40),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.35,
+                            (20, 226, 20), 1)
+            detection_counter += 1
+
+        cv2.imshow("PREVIEW", image)
+        cv2.namedWindow("PREVIEW")
+        cv2.waitKey(0)
+
+        retry = True
+        while retry:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    retry = False
+                    cv2.destroyAllWindows()
+
+    def _scan_and_show_emotion_result(self, image, gray_image):
+        face_recogn = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
+        detection = face_recogn.detectMultiScale(image, scaleFactor=1.2, minNeighbors=5)
+        detection_counter = 0
+
+        if detection == ():
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "NoDetectionsIdentifiedOnImageScreen"
+            return
+
+        for (x, y, z, w) in detection:
+            if detection_counter == 0:
+                cv2.putText(image, "PRESS SPACE TWICE TO CLOSE THE IMAGE", (10, 40),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.35,
+                            (20, 226, 20), 1)
+            detection_counter += 1
+            cv2.rectangle(image, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+            cut_gray_image = gray_image[y: y + z, x: x + w]
+            resized_cut_gray_image = cv2.resize(cut_gray_image, (48, 48))
+            gray_image_array = ima.img_to_array(resized_cut_gray_image)
+            gray_image_array_expanded = numpy.expand_dims(gray_image_array, axis=0)
+            gray_image_array_expanded /= 255
+            prediction = self.loaded_model.predict(gray_image_array_expanded)
+            final_prediction = numpy.argmax(prediction[0])
+            result = list_of_emotions[final_prediction]
+            if z >= 210 and w >= 210:
+                cv2.putText(image, result, (int(x + 5), int(y + 45)), cv2.FONT_HERSHEY_SIMPLEX, 1.4,
+                            (0, 0, 255), 2)
+                continue
+            cv2.putText(image, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.35,
+                        (0, 0, 255), 1)
+        cv2.imshow("PREVIEW", image)
+        cv2.namedWindow("PREVIEW")
+        cv2.waitKey(0)
+
+        retry = True
+        while retry:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    retry = False
+                    cv2.destroyAllWindows()
+
+    def _scan_and_show_body_part_cropped_result(self, image, gray_image):
+        body_classifier = get_body_classifier()
+        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+
+        if detection == ():
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "NoDetectionsIdentifiedOnImageScreen"
+            return
+
+        for index, (x, y, z, w) in enumerate(detection):
+            image_cropped = image[y: y + z, x: x + w]
+            image_cropped_resized = cv2.resize(image_cropped, (520, 400))
+            if index == len(detection) - 1:
+                cv2.putText(image_cropped_resized, "PRESS SPACE TWICE TO CLOSE THE IMAGE", (10, 11),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.30,
+                            (20, 226, 20), 1)
+            else:
+                cv2.putText(image_cropped_resized, "PRESS SPACE TO GET TO THE NEXT IMAGE", (10, 11),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.30,
+                            (20, 226, 20), 1)
+            cv2.imshow("PREVIEW", image_cropped_resized)
+            cv2.namedWindow("PREVIEW")
+            cv2.waitKey(0)
+
+        retry = True
+        while retry:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    retry = False
+                    cv2.destroyWindow("PREVIEW")
+
+    def _scan_and_show_emotion_cropped_result(self, image, gray_image):
+        face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
+        detection = face_classifier.detectMultiScale(image, scaleFactor=1.2, minNeighbors=5)
+
+        if detection == ():
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "NoDetectionsIdentifiedOnImageScreen"
+            return
+
+        for index, (x, y, z, w) in enumerate(detection):
+            image_cropped = image[y: y + z, x: x + w]
+            image_cropped_resized = cv2.resize(image_cropped, (520, 400))
+            cut_gray_image = gray_image[y: y + z, x: x + w]
+            resized_cut_gray_image = cv2.resize(cut_gray_image, (48, 48))
+            gray_image_array = ima.img_to_array(resized_cut_gray_image)
+            gray_image_array_expanded = numpy.expand_dims(gray_image_array, axis=0)
+            gray_image_array_expanded /= 255
+            prediction = self.loaded_model.predict(gray_image_array_expanded)
+            final_prediction = numpy.argmax(prediction[0])
+            result = list_of_emotions[final_prediction]
+            cv2.putText(image_cropped_resized, result, (10, 50),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1.4,
+                        (0, 0, 255), 2)
+            if index == len(detection) - 1:
+                cv2.putText(image_cropped_resized, "PRESS SPACE TWICE TO CLOSE THE IMAGE", (10, 11),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.30,
+                            (20, 226, 20), 1)
+            else:
+                cv2.putText(image_cropped_resized, "PRESS SPACE TO GET TO THE NEXT IMAGE", (10, 11),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.30,
+                            (20, 226, 20), 1)
+            cv2.imshow("PREVIEW", image_cropped_resized)
+            cv2.namedWindow("PREVIEW")
+            cv2.waitKey(0)
+
+        retry = True
+        while retry:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    retry = False
+                    cv2.destroyWindow("PREVIEW")
 
 
-class pathimcam(Screen):
+class ChooseImageCamInputScreen(Screen):
     def __init__(self, **kwargs):
-        super(pathimcam, self).__init__(**kwargs)
+        super(ChooseImageCamInputScreen, self).__init__(**kwargs)
         layout = FloatLayout(size=(350, 600))
-        label1 = Label(text="IMAGE FROM YOUR CAMERA", pos_hint={"x": 0.01, "y": 0.25},
+        title_label = Label(text="IMAGE FROM YOUR CAMERA", pos_hint={"x": 0.01, "y": 0.25},
                        color=(0.309, 0.933, 0.078, 4))
-        but1 = Button(text="TAKE AND SAVE FULL IMAGE >", background_color=(0.309, 0.933, 0.078, 4),
+        take_and_save_button = Button(text="TAKE AND SAVE FULL IMAGE >", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.53, "y": 0.45},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.3, 0.23), font_size="13sp")
-        but1.bind(on_press=self.scan)
-        but3 = Button(text="TAKE AND SHOW RESULT", background_color=(0.309, 0.933, 0.078, 4),
+        take_and_save_button.bind(on_press=self.scan_and_save_result)
+        take_and_show_button = Button(text="TAKE AND SHOW RESULT", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.20, "y": 0.45},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.3, 0.23), font_size="13sp")
-        but3.bind(on_press=self.result)
-        but4 = Button(text="TAKE AND SHOW DETECTED AREAS", background_color=(0.309, 0.933, 0.078, 4),
+        take_and_show_button.bind(on_press=self.scan_and_show_result)
+        take_and_show_cropped_button = Button(text="TAKE AND SHOW DETECTED AREAS", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.20, "y": 0.15},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.3, 0.23), font_size="13sp")
-        but4.bind(on_press=self.result_area)
-        but5 = Button(text="TAKE AND SAVE DETECTED AREAS >", background_color=(0.309, 0.933, 0.078, 4),
+        take_and_show_cropped_button.bind(on_press=self.scan_and_show_cropped_result)
+        take_and_save_cropped_button = Button(text="TAKE AND SAVE DETECTED AREAS >", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.53, "y": 0.15},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.3, 0.23), font_size="13sp")
-        but5.bind(on_press=self.scan_area)
-        but2 = Button(text="< BACK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.035, "y": 0.85},
+        take_and_save_cropped_button.bind(on_press=self.scan_and_save_cropped_result)
+        go_back_button = Button(text="< BACK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.035, "y": 0.85},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.2, 0.1))
-        but2.bind(on_press=self.switch)
+        go_back_button.bind(on_press=self.switch_to_choose_input_screen)
 
-        layout.add_widget(label1)
-        layout.add_widget(but1)
-        layout.add_widget(but2)
-        layout.add_widget(but3)
-        layout.add_widget(but4)
-        layout.add_widget(but5)
+        layout.add_widget(title_label)
+        layout.add_widget(take_and_save_button)
+        layout.add_widget(take_and_show_button)
+        layout.add_widget(take_and_show_cropped_button)
+        layout.add_widget(take_and_save_cropped_button)
+        layout.add_widget(go_back_button)
         self.add_widget(layout)
-        self.model = ""
-        # self.event = ""
-
-    # def on_enter(self, *args):
-    #    global screen_to
-    #    try:
-    #        self.event = Clock.schedule_interval(self.check, 0.5)
-    #        os.listdir(app + "TO_PROCESS")
-    #        os.listdir(app + "PROCESSED")
-    #    except Exception as _:
-    #        screen_to = "pathimcam"
-    #        self.manager.transition = SlideTransition(direction="down")
-    #        self.manager.current = "no_folder_error"
-
-    # def on_leave(self, *args):
-    #    self.event.cancel()
+        self.loaded_model = ""
 
     def on_enter(self, *args):
-        global app
-        global app_assets
-        if getattr(sys, 'frozen', False):
-            app = str(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(sys.executable))))) + "/"
-            app_assets = str(os.path.dirname(sys.executable)) + "/"
-        elif __file__:
-            app = str(os.path.dirname(__file__)) + "/"
-            app_assets = str(os.path.dirname(__file__)) + "/"
-        self.model = model_from_json(open(app_assets + "assets/neuralnet.json", "r").read())
-        self.model.load_weights(app_assets + "assets/weights.h5")
+        self.loaded_model = model_from_json(open(path_to_app_assets + "/neuralnet.json", "r").read())
+        self.loaded_model.load_weights(path_to_app_assets + "/weights.h5")
 
-    def switch(self, *args):
+    def switch_to_choose_input_screen(self, *args):
         self.manager.transition = SlideTransition(direction="right")
-        self.manager.current = "choose"
+        self.manager.current = "ChooseInputScreen"
 
-    def scan(self, *args):
+    def scan_and_save_result(self, *args):
         try:
             image = cv2.VideoCapture(cam_port)
             k, frame = image.read()
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            if switcher != "emotion":
-                global classifier
-                if switcher == "face":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                elif switcher == "body":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_fullbody.xml")
-                elif switcher == "eye":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_eye.xml")
-                elif switcher == "smile":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
-                detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-                if detection == ():
-                    self.manager.transition = SlideTransition(direction="down")
-                    self.manager.current = "nodetectionscam"
-                else:
-                    for (x, y, z, w) in detection:
-                        cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
-                    cv2.imwrite(app + "/ProcessedImage=).png", frame)
-                    image.release()
-                    self.manager.transition = SlideTransition(direction="left")
-                    self.manager.current = "finalim"
-            elif switcher == "emotion":
-                face_recogn = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                detection = face_recogn.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
-                if detection == ():
-                    self.manager.transition = SlideTransition(direction="down")
-                    self.manager.current = "nodetectionscam"
-                else:
-                    for (x, y, z, w) in detection:
-                        cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
-                        cut_gray = gray[y: y + z, x: x + w]
-                        resized_cut_gray = cv2.resize(cut_gray, (48, 48))
-                        array_gray_im = ima.img_to_array(resized_cut_gray)
-                        array_gray_im_expanded = numpy.expand_dims(array_gray_im, axis=0)
-                        array_gray_im_expanded /= 255
-                        prediction = self.model.predict(array_gray_im_expanded)
-                        final_prediction = numpy.argmax(prediction[0])
-                        list_of_emotions = ['angry', 'disgusted', 'fearful', 'happy', 'sad', 'surprised', 'neutral']
-                        result = list_of_emotions[final_prediction]
-                        if z >= 210 and w >= 210:
-                            cv2.putText(frame, result, (int(x + 5), int(y + 45)), cv2.FONT_HERSHEY_SIMPLEX, 1.4,
-                                        (0, 0, 255), 2)
-                        else:
-                            cv2.putText(frame, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.35,
-                                        (0, 0, 255), 1)
-                    cv2.imwrite(app + "/ProcessedImage=).png", frame)
-                    self.manager.transition = SlideTransition(direction="left")
-                    self.manager.current = "finalim"
-        except Exception as _:
+            gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            if area_for_scan != "emotion":
+                self._scan_and_save_body_part_result(frame, image, gray_image)
+                return
+            self._scan_and_save_emotion_result(frame, image, gray_image)
+        except Exception as e:
+            print("Error: " + str(e))
             self.manager.transition = SlideTransition(direction="down")
-            self.manager.current = "errorimcam"
+            self.manager.current = "ErrorImageCamScreen"
 
-    def scan_area(self, *args):
+    def scan_and_save_cropped_result(self, *args):
         try:
             image = cv2.VideoCapture(cam_port)
             k, frame = image.read()
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            if switcher != "emotion":
-                global classifier
-                if switcher == "face":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                elif switcher == "body":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_fullbody.xml")
-                elif switcher == "eye":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_eye.xml")
-                elif switcher == "smile":
-                    classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
-                detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-                picker = 0
-                if detection == ():
-                    self.manager.transition = SlideTransition(direction="down")
-                    self.manager.current = "nodetectionscam"
-                else:
-                    for (x, y, z, w) in detection:
-                        picker += 1
-                        image_fin = frame[y: y + z, x: x + w]
-                        image_fin = cv2.resize(image_fin, (520, 400))
-                        cv2.imwrite(app + "/ProcessedImage=)" + str(picker) + ".png", image_fin)
-                    image.release()
-                    self.manager.transition = SlideTransition(direction="left")
-                    self.manager.current = "finalim"
-            elif switcher == "emotion":
-                face_recogn = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                detection = face_recogn.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
-                if detection == ():
-                    self.manager.transition = SlideTransition(direction="down")
-                    self.manager.current = "nodetectionscam"
-                else:
-                    picker = 0
-                    for (x, y, z, w) in detection:
-                        picker += 1
-                        image_f = frame[y: y + z, x: x + w]
-                        image_final = cv2.resize(image_f, (520, 400))
-                        cut_gray = gray[y: y + z, x: x + w]
-                        resized_cut_gray = cv2.resize(cut_gray, (48, 48))
-                        array_gray_im = ima.img_to_array(resized_cut_gray)
-                        array_gray_im_expanded = numpy.expand_dims(array_gray_im, axis=0)
-                        array_gray_im_expanded /= 255
-                        prediction = self.model.predict(array_gray_im_expanded)
-                        final_prediction = numpy.argmax(prediction[0])
-                        list_of_emotions = ['angry', 'disgusted', 'fearful', 'happy', 'sad', 'surprised', 'neutral']
-                        result = list_of_emotions[final_prediction]
-                        cv2.putText(image_final, result, (10, 45),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    1.4,
-                                    (0, 0, 255), 2)
-                        cv2.imwrite(app + "/ProcessedImage=)" + str(picker) + ".png", image_final)
-                    self.manager.transition = SlideTransition(direction="left")
-                    self.manager.current = "finalim"
-        except Exception as _:
+            gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            if area_for_scan != "emotion":
+                self._scan_and_save_body_part_cropped_result(frame, image, gray_image)
+                return
+            self._scan_and_save_emotion_cropped_result(frame, image, gray_image)
+        except Exception as e:
+            print("Error: " + str(e))
             self.manager.transition = SlideTransition(direction="down")
-            self.manager.current = "errorimcam"
+            self.manager.current = "ErrorImageCamScreen"
 
-    def result(self, *args):
+    def scan_and_show_result(self, *args):
         image = cv2.VideoCapture(cam_port)
         k, frame = image.read()
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        if switcher != "emotion":
-            global classifier
-            if switcher == "face":
-                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-            elif switcher == "body":
-                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_fullbody.xml")
-            elif switcher == "eye":
-                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_eye.xml")
-            elif switcher == "smile":
-                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
-            detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-            retry = True
-            counter = 0
-            if detection == ():
-                self.manager.transition = SlideTransition(direction="down")
-                self.manager.current = "nodetectionscam"
-            else:
-                for (x, y, z, w) in detection:
-                    counter += 1
-                    cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
-                    if counter == 1:
-                        cv2.putText(frame, "PRESS SPACE TWICE TO CLOSE THE IMAGE", (10, 15), cv2.FONT_HERSHEY_SIMPLEX,
-                                    0.35,
-                                    (20, 226, 20), 1)
-                cv2.imshow("PREVIEW", frame)
-                cv2.namedWindow("PREVIEW")
-                cv2.waitKey(0)
-                image.release()
-                while retry:
-                    for event in pygame.event.get():
-                        if event.type == pygame.KEYDOWN:
-                            if event.key == pygame.K_SPACE:
-                                retry = False
-                                cv2.destroyAllWindows()
-        elif switcher == "emotion":
-            face_recogn = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-            detection = face_recogn.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
-            retry = True
-            counter = 0
-            if detection == ():
-                self.manager.transition = SlideTransition(direction="down")
-                self.manager.current = "nodetectionscam"
-            else:
-                for (x, y, z, w) in detection:
-                    counter += 1
-                    cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
-                    if counter == 1:
-                        cv2.putText(frame, "PRESS SPACE TWICE TO CLOSE THE IMAGE", (10, 40),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    0.35,
-                                    (20, 226, 20), 1)
-                    cut_gray = gray[y: y + z, x: x + w]
-                    resized_cut_gray = cv2.resize(cut_gray, (48, 48))
-                    array_gray_im = ima.img_to_array(resized_cut_gray)
-                    array_gray_im_expanded = numpy.expand_dims(array_gray_im, axis=0)
-                    array_gray_im_expanded /= 255
-                    prediction = self.model.predict(array_gray_im_expanded)
-                    final_prediction = numpy.argmax(prediction[0])
-                    list_of_emotions = ['angry', 'disgusted', 'fearful', 'happy', 'sad', 'surprised', 'neutral']
-                    result = list_of_emotions[final_prediction]
-                    if z >= 210 and w >= 210:
-                        cv2.putText(frame, result, (int(x + 5), int(y + 45)), cv2.FONT_HERSHEY_SIMPLEX, 1.4,
-                                    (0, 0, 255), 2)
-                    else:
-                        cv2.putText(frame, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.35,
-                                    (0, 0, 255), 1)
-                cv2.imshow("PREVIEW", frame)
-                cv2.namedWindow("PREVIEW")
-                cv2.waitKey(0)
-                while retry:
-                    for event in pygame.event.get():
-                        if event.type == pygame.KEYDOWN:
-                            if event.key == pygame.K_SPACE:
-                                retry = False
-                                cv2.destroyAllWindows()
+        gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        if area_for_scan != "emotion":
+            self._scan_and_show_body_part_result(frame, image, gray_image)
+            return
+        self._scan_and_show_emotion_result(frame, image, gray_image)
 
-    def result_area(self, *args):
+    def scan_and_show_cropped_result(self, *args):
         image = cv2.VideoCapture(cam_port)
         k, frame = image.read()
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        if switcher != "emotion":
-            global classifier
-            if switcher == "face":
-                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-            elif switcher == "body":
-                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_fullbody.xml")
-            elif switcher == "eye":
-                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_eye.xml")
-            elif switcher == "smile":
-                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
-            detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-            retry = True
-            counter = 0
-            tracker = 0
-            counter_of_images = []
-            for _ in detection:
-                counter += 1
-                counter_of_images.append(counter)
-            if detection == ():
-                self.manager.transition = SlideTransition(direction="down")
-                self.manager.current = "nodetectionscam"
+        gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        if area_for_scan != "emotion":
+            self._scan_and_show_body_part_cropped_result(frame, gray_image)
+            return
+        self._scan_and_show_emotion_cropped_result(frame, gray_image)
+
+    def _scan_and_save_body_part_result(self, frame, image, gray_image):
+        body_classifier = get_body_classifier()
+        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+
+        if detection == ():
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "NoDetectionsIdentifiedOnImageCamScreen"
+            return
+
+        for (x, y, z, w) in detection:
+            cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+        cv2.imwrite(path_to_app + "/ProcessedImage.png", frame)
+        image.release()
+        self.manager.transition = SlideTransition(direction="left")
+        self.manager.current = "ProcessedScreen"
+
+    def _scan_and_save_emotion_result(self, frame, image, gray_image):
+        face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
+        detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+
+        if detection == ():
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "NoDetectionsIdentifiedOnImageCamScreen"
+            return
+
+        for (x, y, z, w) in detection:
+            cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+            cut_gray_image = gray_image[y: y + z, x: x + w]
+            resized_cut_gray_image = cv2.resize(cut_gray_image, (48, 48))
+            gray_image_array = ima.img_to_array(resized_cut_gray_image)
+            gray_image_array_expanded = numpy.expand_dims(gray_image_array, axis=0)
+            gray_image_array_expanded /= 255
+            prediction = self.loaded_model.predict(gray_image_array_expanded)
+            final_prediction = numpy.argmax(prediction[0])
+            result = list_of_emotions[final_prediction]
+            if z >= 210 and w >= 210:
+                cv2.putText(frame, result, (int(x + 5), int(y + 45)), cv2.FONT_HERSHEY_SIMPLEX, 1.4,
+                            (0, 0, 255), 2)
             else:
-                for (x, y, z, w) in detection:
-                    final_val = counter_of_images[-1]
-                    value = counter_of_images[tracker]
-                    tracker += 1
-                    image_fin = frame[y: y + z, x: x + w]
-                    image_fin = cv2.resize(image_fin, (520, 400))
-                    if value == final_val:
-                        cv2.putText(image_fin, "PRESS SPACE TWICE TO CLOSE THE IMAGE", (10, 11),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    0.30,
-                                    (20, 226, 20), 1)
-                    else:
-                        cv2.putText(image_fin, "PRESS SPACE TO GET TO THE NEXT IMAGE", (10, 11),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    0.30,
-                                    (20, 226, 20), 1)
-                    cv2.imshow("PREVIEW", image_fin)
-                    cv2.namedWindow("PREVIEW")
-                    cv2.waitKey(0)
-                    image.release()
-                while retry:
-                    for event in pygame.event.get():
-                        if event.type == pygame.KEYDOWN:
-                            if event.key == pygame.K_SPACE:
-                                retry = False
-                                cv2.destroyWindow("PREVIEW")
-        elif switcher == "emotion":
-            face_recogn = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-            detection = face_recogn.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
-            if detection == ():
-                self.manager.transition = SlideTransition(direction="down")
-                self.manager.current = "nodetectionscam"
+                cv2.putText(frame, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.35,
+                            (0, 0, 255), 1)
+        cv2.imwrite(path_to_app + "/ProcessedImage.png", frame)
+        image.release()
+        self.manager.transition = SlideTransition(direction="left")
+        self.manager.current = "ProcessedScreen"
+
+    def _scan_and_save_body_part_cropped_result(self, frame, image, gray_image):
+        body_classifier = get_body_classifier()
+        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+        image_count = 0
+
+        if detection == ():
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "NoDetectionsIdentifiedOnImageCamScreen"
+            return
+
+        for (x, y, z, w) in detection:
+            image_count += 1
+            image_cropped = frame[y: y + z, x: x + w]
+            image_result = cv2.resize(image_cropped, (520, 400))
+            cv2.imwrite(path_to_app + "/ProcessedImage" + str(image_count) + ".png", image_result)
+        image.release()
+        self.manager.transition = SlideTransition(direction="left")
+        self.manager.current = "ProcessedScreen"
+
+    def _scan_and_save_emotion_cropped_result(self, frame, image, gray_image):
+        face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
+        detection = face_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+
+        if detection == ():
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "NoDetectionsIdentifiedOnImageCamScreen"
+            return
+
+        image_count = 0
+        for (x, y, z, w) in detection:
+            image_count += 1
+            frame_cropped = frame[y: y + z, x: x + w]
+            frame_cropped_final = cv2.resize(frame_cropped, (520, 400))
+            gray_image_cropped = gray_image[y: y + z, x: x + w]
+            resized_gray_image_cropped = cv2.resize(gray_image_cropped, (48, 48))
+            image_array_gray = ima.img_to_array(resized_gray_image_cropped)
+            image_array_gray_expanded = numpy.expand_dims(image_array_gray, axis=0)
+            image_array_gray_expanded /= 255
+            prediction = self.loaded_model.predict(image_array_gray_expanded)
+            final_prediction = numpy.argmax(prediction[0])
+            result = list_of_emotions[final_prediction]
+            cv2.putText(frame_cropped_final, result, (10, 45),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1.4,
+                        (0, 0, 255), 2)
+            cv2.imwrite(path_to_app + "/ProcessedImage" + str(image_count) + ".png",
+                        frame_cropped_final)
+        image.release()
+        self.manager.transition = SlideTransition(direction="left")
+        self.manager.current = "ProcessedScreen"
+
+    def _scan_and_show_body_part_result(self, frame, image, gray_image):
+        body_classifier = get_body_classifier()
+        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+        image_counter = 0
+
+        if detection == ():
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "NoDetectionsIdentifiedOnImageCamScreen"
+            return
+
+        for (x, y, z, w) in detection:
+            cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+            if image_counter == 0:
+                cv2.putText(frame, "PRESS SPACE TWICE TO CLOSE THE IMAGE", (10, 15), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.35,
+                            (20, 226, 20), 1)
+            image_counter += 1
+        cv2.imshow("PREVIEW", frame)
+        cv2.namedWindow("PREVIEW")
+        cv2.waitKey(0)
+        image.release()
+
+        retry = True
+        while retry:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    retry = False
+                    cv2.destroyAllWindows()
+
+    def _scan_and_show_emotion_result(self, frame, image, gray_image):
+        face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
+        detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+        image_counter = 0
+
+        if detection == ():
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "NoDetectionsIdentifiedOnImageCamScreen"
+            return
+
+        for (x, y, z, w) in detection:
+            if image_counter == 0:
+                cv2.putText(frame, "PRESS SPACE TWICE TO CLOSE THE IMAGE", (10, 40),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.35,
+                            (20, 226, 20), 1)
+            cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+            image_counter += 1
+            gray_image_cropped = gray_image[y: y + z, x: x + w]
+            resized_gray_image_cropped = cv2.resize(gray_image_cropped, (48, 48))
+            gray_image_array = ima.img_to_array(resized_gray_image_cropped)
+            gray_image_array_expanded = numpy.expand_dims(gray_image_array, axis=0)
+            gray_image_array_expanded /= 255
+            prediction = self.loaded_model.predict(gray_image_array_expanded)
+            final_prediction = numpy.argmax(prediction[0])
+            result = list_of_emotions[final_prediction]
+            if z >= 210 and w >= 210:
+                cv2.putText(frame, result, (int(x + 5), int(y + 45)), cv2.FONT_HERSHEY_SIMPLEX, 1.4,
+                            (0, 0, 255), 2)
             else:
-                retry = True
-                counter = 0
-                tracker = 0
-                counter_of_images = []
-                for _ in detection:
-                    counter += 1
-                    counter_of_images.append(counter)
-                picker = 0
-                for (x, y, z, w) in detection:
-                    picker += 1
-                    image_f = frame[y: y + z, x: x + w]
-                    image_final = cv2.resize(image_f, (520, 400))
-                    cut_gray = gray[y: y + z, x: x + w]
-                    resized_cut_gray = cv2.resize(cut_gray, (48, 48))
-                    array_gray_im = ima.img_to_array(resized_cut_gray)
-                    array_gray_im_expanded = numpy.expand_dims(array_gray_im, axis=0)
-                    array_gray_im_expanded /= 255
-                    prediction = self.model.predict(array_gray_im_expanded)
-                    final_prediction = numpy.argmax(prediction[0])
-                    list_of_emotions = ['angry', 'disgusted', 'fearful', 'happy', 'sad', 'surprised', 'neutral']
-                    result = list_of_emotions[final_prediction]
-                    cv2.putText(image_final, result, (10, 50),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                1.4,
-                                (0, 0, 255), 2)
-                    final_val = counter_of_images[-1]
-                    value = counter_of_images[tracker]
-                    tracker += 1
-                    if value == final_val:
-                        cv2.putText(image_final, "PRESS SPACE TWICE TO CLOSE THE IMAGE", (10, 11),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    0.30,
-                                    (20, 226, 20), 1)
-                    else:
-                        cv2.putText(image_final, "PRESS SPACE TO GET TO THE NEXT IMAGE", (10, 11),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    0.30,
-                                    (20, 226, 20), 1)
-                    cv2.imshow("PREVIEW", image_final)
-                    cv2.namedWindow("PREVIEW")
-                    cv2.waitKey(0)
-                while retry:
-                    for event in pygame.event.get():
-                        if event.type == pygame.KEYDOWN:
-                            if event.key == pygame.K_SPACE:
-                                retry = False
-                                cv2.destroyWindow("PREVIEW")
+                cv2.putText(frame, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.35,
+                            (0, 0, 255), 1)
+        cv2.imshow("PREVIEW", frame)
+        cv2.namedWindow("PREVIEW")
+        cv2.waitKey(0)
+        image.release()
+
+        retry = True
+        while retry:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    retry = False
+                    cv2.destroyAllWindows()
+
+    def _scan_and_show_body_part_cropped_result(self, frame, gray_image):
+        body_classifier = get_body_classifier()
+        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+
+        if detection == ():
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "NoDetectionsIdentifiedOnImageCamScreen"
+            return
+
+        for index, (x, y, z, w) in enumerate(detection):
+            image_fin = frame[y: y + z, x: x + w]
+            image_fin = cv2.resize(image_fin, (520, 400))
+            if index == len(detection) - 1:
+                cv2.putText(image_fin, "PRESS SPACE TWICE TO CLOSE THE IMAGE", (10, 11),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.30,
+                            (20, 226, 20), 1)
+            else:
+                cv2.putText(image_fin, "PRESS SPACE TO GET TO THE NEXT IMAGE", (10, 11),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.30,
+                            (20, 226, 20), 1)
+            cv2.imshow("PREVIEW", image_fin)
+            cv2.namedWindow("PREVIEW")
+            cv2.waitKey(0)
+
+        retry = True
+        while retry:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    retry = False
+                    cv2.destroyWindow("PREVIEW")
+
+    def _scan_and_show_emotion_cropped_result(self, frame, gray_image):
+        face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
+        detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+
+        if detection == ():
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "NoDetectionsIdentifiedOnImageCamScreen"
+            return
+
+        for index, (x, y, z, w) in enumerate(detection):
+            image_cropped = frame[y: y + z, x: x + w]
+            image_result = cv2.resize(image_cropped, (520, 400))
+            gray_image_cropped = gray_image[y: y + z, x: x + w]
+            resized_gray_image_cropped = cv2.resize(gray_image_cropped, (48, 48))
+            gray_image_array = ima.img_to_array(resized_gray_image_cropped)
+            gray_image_array_expanded = numpy.expand_dims(gray_image_array, axis=0)
+            gray_image_array_expanded /= 255
+            prediction = self.loaded_model.predict(gray_image_array_expanded)
+            final_prediction = numpy.argmax(prediction[0])
+            result = list_of_emotions[final_prediction]
+            cv2.putText(image_result, result, (10, 50),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1.4,
+                        (0, 0, 255), 2)
+            if index == len(detection) - 1:
+                cv2.putText(image_result, "PRESS SPACE TWICE TO CLOSE THE IMAGE", (10, 11),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.30,
+                            (20, 226, 20), 1)
+            else:
+                cv2.putText(image_result, "PRESS SPACE TO GET TO THE NEXT IMAGE", (10, 11),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.30,
+                            (20, 226, 20), 1)
+            cv2.imshow("PREVIEW", image_result)
+            cv2.namedWindow("PREVIEW")
+            cv2.waitKey(0)
+
+        retry = True
+        while retry:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    retry = False
+                    cv2.destroyWindow("PREVIEW")
 
 
-class pathvid(Screen):
+class ChooseVideoScreen(Screen):
     def __init__(self, **kwargs):
-        super(pathvid, self).__init__(**kwargs)
+        super(ChooseVideoScreen, self).__init__(**kwargs)
         self.layout = FloatLayout(size=(350, 600))
         self.popup_layout = FloatLayout(size=(175, 300))
 
-        label4 = Label(text="VIDEO",
+        title_label = Label(text="VIDEO",
                        pos_hint={"x": 0.194, "y": 0.83},
                        color=(0.309, 0.933, 0.078, 4), size_hint=(0.62, .07))
-        label3 = Label(text="WRITE FULL PATH TO A VIDEO (i.e. /Users/joe/video.mp4) OR PRESS FILE ICON TO CHOOSE FILE", pos_hint={"x": 0.01, "y": 0.24},
+        write_path_label = Label(text="WRITE FULL PATH TO A VIDEO (i.e. /Users/joe/video.mp4) OR PRESS FILE ICON TO CHOOSE FILE", pos_hint={"x": 0.01, "y": 0.24},
                        color=(0.309, 0.933, 0.078, 4))
-        self.txt1 = TextInput(hint_text='PATH TO A VIDEO',
-                              multiline=False,
-                              size_hint=(0.55, .07),
-                              pos_hint={'x': 0.2, 'y': 0.57},
-                              background_color=(0.309, 0.933, 0.078, 4))
-        but1 = Button(text="SAVE FULL VIDEO >", background_color=(0.309, 0.933, 0.078, 4),
+        self.file_path_input = TextInput(hint_text='PATH TO A VIDEO',
+                                         multiline=False,
+                                         size_hint=(0.55, .07),
+                                         pos_hint={'x': 0.2, 'y': 0.57},
+                                         background_color=(0.309, 0.933, 0.078, 4))
+        save_video_button = Button(text="SAVE FULL VIDEO >", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.53, "y": 0.33},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20), font_size="12.5sp")
-        but1.bind(on_press=self.scan)
-        but3 = Button(text="SHOW RESULT", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.20, "y": 0.33},
+        save_video_button.bind(on_press=self.scan_and_save_result)
+        show_result_button = Button(text="SHOW RESULT", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.20, "y": 0.33},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20), font_size="12.5sp")
-        but3.bind(on_press=self.result)
-        but4 = Button(text="SHOW ONLY DETECTED AREAS", background_color=(0.309, 0.933, 0.078, 4),
+        show_result_button.bind(on_press=self.scan_and_show_result)
+        show_result_cropped_button = Button(text="SHOW ONLY DETECTED AREAS", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.20, "y": 0.08},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20), font_size="12.5sp")
-        but4.bind(on_press=self.result_area)
-        but5 = Button(text="SAVE ONLY DETECTED AREAS >", background_color=(0.309, 0.933, 0.078, 4),
+        show_result_cropped_button.bind(on_press=self.scan_and_show_cropped_result)
+        save_result_cropped_button = Button(text="SAVE ONLY DETECTED AREAS >", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.53, "y": 0.08},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20), font_size="12.5sp")
-        but5.bind(on_press=self.scan_area)
-        but2 = Button(text="< BACK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.035, "y": 0.85},
+        save_result_cropped_button.bind(on_press=self.scan_and_save_cropped_result)
+        go_back_button = Button(text="< BACK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.035, "y": 0.85},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.2, 0.1))
-        but2.bind(on_press=self.switch)
-        file_finder = Button(text="", background_normal=app_assets + "assets/file.png",
-                             background_down=app_assets + "assets/file.png", pos_hint={"x": 0.75, "y": 0.56},
+        go_back_button.bind(on_press=self.switch_to_choose_input_screen)
+        file_finder_button = Button(text="", background_normal=path_to_app_assets + "/file.png",
+                             background_down=path_to_app_assets + "/file.png", pos_hint={"x": 0.75, "y": 0.56},
                              size_hint=(0.075, 0.095))
-        file_finder.bind(on_press=self.pops)
-        self.file_chooser = FileChooserIconView(dirselect=True)
-        but_close_popup = Button(text="CANCEL", background_color=(0.309, 0.933, 0.078, 4),
+        file_finder_button.bind(on_press=self.open_file_finder)
+        self.file_finder_icon_view = FileChooserIconView(dirselect=True)
+        close_file_finder_cancel_button = Button(text="CANCEL", background_color=(0.309, 0.933, 0.078, 4),
                                  pos_hint={"x": 0.005, "y": 1.015},
                                  color=(0.141, 0.054, 0.078, 4), size_hint=(0.15, 0.05))
-        but_ok_popup = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4),
+        close_file_finder_ok_button = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4),
                               pos_hint={"x": 0.84, "y": 1.015},
                               color=(0.141, 0.054, 0.078, 4), size_hint=(0.15, 0.05))
-        but_close_popup.bind(on_press=self.close)
-        but_ok_popup.bind(on_press=self.choose_file)
-        self.layout.add_widget(label4)
-        self.layout.add_widget(self.txt1)
-        self.layout.add_widget(label3)
-        self.layout.add_widget(but1)
-        self.layout.add_widget(but2)
-        self.layout.add_widget(but3)
-        self.layout.add_widget(but4)
-        self.layout.add_widget(but5)
-        self.layout.add_widget(file_finder)
+        close_file_finder_cancel_button.bind(on_press=self.close_file_finder)
+        close_file_finder_ok_button.bind(on_press=self.choose_file)
+        self.layout.add_widget(title_label)
+        self.layout.add_widget(self.file_path_input)
+        self.layout.add_widget(write_path_label)
+        self.layout.add_widget(save_video_button)
+        self.layout.add_widget(go_back_button)
+        self.layout.add_widget(show_result_button)
+        self.layout.add_widget(show_result_cropped_button)
+        self.layout.add_widget(save_result_cropped_button)
+        self.layout.add_widget(file_finder_button)
         self.add_widget(self.layout)
-        self.model = ""
-        self.popup_layout.add_widget(self.file_chooser)
-        self.popup_layout.add_widget(but_close_popup)
-        self.popup_layout.add_widget(but_ok_popup)
-        self.popup = Popup(title="select your file", content=self.popup_layout)
-        # self.event = ""
+        self.popup_layout.add_widget(self.file_finder_icon_view)
+        self.popup_layout.add_widget(close_file_finder_cancel_button)
+        self.popup_layout.add_widget(close_file_finder_ok_button)
 
-    # def on_enter(self, *args):
-    #    global screen_to
-    #    try:
-    #        self.event = Clock.schedule_interval(self.check, 0.5)
-    #        os.listdir(app + "TO_PROCESS")
-    #        os.listdir(app + "PROCESSED")
-    #    except Exception as _:
-    #        screen_to = "pathimcam"
-    #        self.manager.transition = SlideTransition(direction="down")
-    #        self.manager.current = "no_folder_error"
+        self.file_finder_popup = Popup(title="select your file", content=self.popup_layout)
 
-    # def on_leave(self, *args):
-    #    self.event.cancel()
+        self.loaded_model = ""
 
     def on_enter(self, *args):
-        global app
-        global app_assets
-        if getattr(sys, 'frozen', False):
-            app = str(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(sys.executable))))) + "/"
-            app_assets = str(os.path.dirname(sys.executable)) + "/"
-        elif __file__:
-            app = str(os.path.dirname(__file__)) + "/"
-            app_assets = str(os.path.dirname(__file__)) + "/"
-        self.model = model_from_json(open(app_assets + "assets/neuralnet.json", "r").read())
-        self.model.load_weights(app_assets + "assets/weights.h5")
+        self.loaded_model = model_from_json(open(path_to_app_assets + "/neuralnet.json", "r").read())
+        self.loaded_model.load_weights(path_to_app_assets + "/weights.h5")
 
-    def pops(self, *args):
-        self.popup.open()
+    def open_file_finder(self, *args):
+        self.file_finder_popup.open()
 
-    def close(self, *args):
-        self.popup.dismiss()
+    def close_file_finder(self, *args):
+        self.file_finder_popup.dismiss()
 
     def choose_file(self, *args):
-        try:
-            self.txt1.text = self.file_chooser.selection[0]
-            self.popup.dismiss()
-        except Exception as _:
-            self.txt1.text = ""
-            self.popup.dismiss()
+        if len(self.file_finder_icon_view.selection) > 0:
+            self.file_path_input.text = self.file_finder_icon_view.selection[0]
+            self.file_finder_popup.dismiss()
+            return
+        self.file_path_input.text = ""
+        self.file_finder_popup.dismiss()
 
-    def switch(self, *args):
+    def switch_to_choose_input_screen(self, *args):
         self.manager.transition = SlideTransition(direction="right")
-        self.manager.current = "choose"
+        self.manager.current = "ChooseInputScreen"
 
-    def scan(self, *args):
+    def scan_and_save_result(self, *args):
         global selected_file_path
-        selected_file_path = str(self.txt1.text)
+        selected_file_path = str(self.file_path_input.text)
         self.manager.transition = SlideTransition(direction="left")
-        self.manager.current = "loading_scan"
+        self.manager.current = "LoadingAndSavingScannedVideoScreen"
 
-    def scan_area(self, *args):
+    def scan_and_save_cropped_result(self, *args):
         global selected_file_path
-        selected_file_path = str(self.txt1.text)
+        selected_file_path = str(self.file_path_input.text)
         self.manager.transition = SlideTransition(direction="left")
-        self.manager.current = "loading_scan_areas"
+        self.manager.current = "LoadingAndSavingScannedVideoCroppedScreen"
 
-    def result(self, *args):
-        app = self.txt1.text
+    def scan_and_show_result(self, *args):
+        app = self.file_path_input.text
         try:
-            if str(self.txt1.text[-3:]) != "peg" and str(self.txt1.text[-3:]) != "jpg" and str(
-                    self.txt1.text[-3:]) != "gif" and str(
-                self.txt1.text[-3:]) != "png" and str(self.txt1.text[-3:]) != "iff" and str(
-                self.txt1.text[-3:]) != "psd" and str(
-                self.txt1.text[-3:]) != "pdf" and str(self.txt1.text[-3:]) != "eps" and str(
-                self.txt1.text[-3:]) != ".ai" and str(
-                self.txt1.text[-3:]) != "ndd" and str(self.txt1.text[-3:]) != "raw":
-                retry = True
+            selected_file_extension = str(self.file_path_input.text[-3:])
+            if selected_file_extension.lower() not in invalid_file_extensions:
+
+                # check if selected video can be resized
                 video_check = cv2.VideoCapture(app)
                 k, frame_raw_check = video_check.read()
                 cv2.resize(frame_raw_check, (520, 400))
                 video_check.release()
+
                 video = cv2.VideoCapture(app)
                 height_test = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
                 width_test = video.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -1101,1097 +1024,1058 @@ class pathvid(Screen):
                 width = float(width)
                 height = float(height)
                 try:
-                    if switcher != "emotion":
-                        while retry:
-                            k, frame_raw = video.read()
-                            frame = cv2.resize(frame_raw, (int(width), int(height)))
-                            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                            global classifier
-                            if switcher == "face":
-                                classifier = cv2.CascadeClassifier(
-                                    app_assets + "assets/haarcascade_frontalface_default.xml")
-                            elif switcher == "body":
-                                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_fullbody.xml")
-                            elif switcher == "eye":
-                                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_eye.xml")
-                            elif switcher == "smile":
-                                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
-                            detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-                            cv2.putText(frame, "PRESS SPACE ONCE OR TWICE TO CLOSE THE VIDEO", (10, 15),
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        0.35,
-                                        (20, 226, 20), 1)
-                            for (x, y, z, w) in detection:
-                                cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
-                            cv2.imshow("PREVIEW", frame)
-                            cv2.namedWindow("PREVIEW")
-                            for event in pygame.event.get():
-                                if event.type == pygame.KEYDOWN:
-                                    if event.key == pygame.K_SPACE:
-                                        retry = False
-                                        cv2.destroyWindow("PREVIEW")
-                    elif switcher == "emotion":
-                        retry = True
-                        while retry:
-                            k, frame_raw = video.read()
-                            frame = cv2.resize(frame_raw, (int(width), int(height)))
-                            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                            face_recogn = cv2.CascadeClassifier(
-                                app_assets + "assets/haarcascade_frontalface_default.xml")
-                            detection = face_recogn.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
-                            cv2.putText(frame, "PRESS SPACE TWICE TO CLOSE THE VIDEO", (10, 40),
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        0.35,
-                                        (20, 226, 20), 1)
-                            for (x, y, z, w) in detection:
-                                cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
-                                cut_gray = gray[y: y + z, x: x + w]
-                                resized_cut_gray = cv2.resize(cut_gray, (48, 48))
-                                array_gray_im = ima.img_to_array(resized_cut_gray)
-                                array_gray_im_expanded = numpy.expand_dims(array_gray_im, axis=0)
-                                array_gray_im_expanded /= 255
-                                prediction = self.model.predict(array_gray_im_expanded)
-                                final_prediction = numpy.argmax(prediction[0])
-                                list_of_emotions = ['angry', 'disgusted', 'fearful', 'happy', 'sad', 'surprised',
-                                                    'neutral']
-                                result = list_of_emotions[final_prediction]
-                                if z >= 210 and w >= 210:
-                                    cv2.putText(frame, result, (int(x + 5), int(y + 45)), cv2.FONT_HERSHEY_SIMPLEX,
-                                                1.4,
-                                                (0, 0, 255), 2)
-                                else:
-                                    cv2.putText(frame, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX,
-                                                0.35,
-                                                (0, 0, 255), 1)
-                            cv2.imshow("PREVIEW", frame)
-                            cv2.namedWindow("PREVIEW")
-                            for event in pygame.event.get():
-                                if event.type == pygame.KEYDOWN:
-                                    if event.key == pygame.K_SPACE:
-                                        retry = False
-                                        cv2.destroyAllWindows()
-                except Exception as _:
+                    if area_for_scan != "emotion":
+                        self._scan_and_show_body_part_result(video, width, height)
+                    self._scan_and_show_emotion_result(video, width, height)
+                except Exception as e:
+                    # at the end of the video exception will be thrown so it is only a warning
+                    print("Warning: " + str(e))
                     video.release()
                     cv2.destroyAllWindows()
-            else:
-                self.manager.transition = SlideTransition(direction="down")
-                self.manager.current = "errorvid"
-        except Exception as _:
+                    return
             self.manager.transition = SlideTransition(direction="down")
-            self.manager.current = "errorvid"
+            self.manager.current = "ErrorVideoSelectionScreen"
+        except Exception as e:
+            print("Error: " + str(e))
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "ErrorVideoSelectionScreen"
 
-    def result_area(self, *args):
+    def scan_and_show_cropped_result(self, *args):
         global selected_file_path
-        selected_file_path = str(self.txt1.text)
+        selected_file_path = str(self.file_path_input.text)
         self.manager.transition = SlideTransition(direction="left")
-        self.manager.current = "loading_result_areas"
+        self.manager.current = "LoadingAndShowingResultVideoCroppedScreen"
+
+    def _scan_and_show_emotion_result(self, video, width, height):
+        retry = True
+        while retry:
+            k, frame_raw = video.read()
+            frame = cv2.resize(frame_raw, (int(width), int(height)))
+            gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
+            detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+            cv2.putText(frame, "PRESS SPACE TWICE TO CLOSE THE VIDEO", (10, 40),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.35,
+                        (20, 226, 20), 1)
+
+            for (x, y, z, w) in detection:
+                cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+                gray_image_cropped = gray_image[y: y + z, x: x + w]
+                resized_gray_image_cropped = cv2.resize(gray_image_cropped, (48, 48))
+                gray_image_array = ima.img_to_array(resized_gray_image_cropped)
+                gray_image_array_expanded = numpy.expand_dims(gray_image_array, axis=0)
+                gray_image_array_expanded /= 255
+                prediction = self.loaded_model.predict(gray_image_array_expanded)
+                final_prediction = numpy.argmax(prediction[0])
+                result = list_of_emotions[final_prediction]
+                if z >= 210 and w >= 210:
+                    cv2.putText(frame, result, (int(x + 5), int(y + 45)), cv2.FONT_HERSHEY_SIMPLEX,
+                                1.4,
+                                (0, 0, 255), 2)
+                else:
+                    cv2.putText(frame, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX,
+                                0.35,
+                                (0, 0, 255), 1)
+            cv2.imshow("PREVIEW", frame)
+            cv2.namedWindow("PREVIEW")
+
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    retry = False
+                    cv2.destroyAllWindows()
+
+    @staticmethod
+    def _scan_and_show_body_part_result(video, width, height):
+        retry = True
+        while retry:
+            body_classifier = get_body_classifier()
+
+            k, frame_raw = video.read()
+            frame = cv2.resize(frame_raw, (int(width), int(height)))
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            detection = body_classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
+            cv2.putText(frame, "PRESS SPACE ONCE OR TWICE TO CLOSE THE VIDEO", (10, 15),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.35,
+                        (20, 226, 20), 1)
+
+            for (x, y, z, w) in detection:
+                cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+
+            cv2.imshow("PREVIEW", frame)
+            cv2.namedWindow("PREVIEW")
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    retry = False
+                    cv2.destroyWindow("PREVIEW")
 
 
-class pathvidcam(Screen):
+class ChooseVideoCamInputScreen(Screen):
     def __init__(self, **kwargs):
-        super(pathvidcam, self).__init__(**kwargs)
+        super(ChooseVideoCamInputScreen, self).__init__(**kwargs)
         layout = FloatLayout(size=(350, 600))
 
-        label1 = Label(text="VIDEO FROM YOUR CAMERA", pos_hint={"x": 0.01, "y": 0.25},
+        title_label = Label(text="VIDEO FROM YOUR CAMERA", pos_hint={"x": 0.01, "y": 0.25},
                        color=(0.309, 0.933, 0.078, 4))
-        but1 = Button(text="RECORD AND SAVE FULL VIDEO >", background_color=(0.309, 0.933, 0.078, 4),
+        record_and_save_button = Button(text="RECORD AND SAVE FULL VIDEO >", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.53, "y": 0.45},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.3, 0.23), font_size="13sp")
-        but1.bind(on_press=self.scan)
-        but3 = Button(text="RECORD AND SHOW RESULT", background_color=(0.309, 0.933, 0.078, 4),
+        record_and_save_button.bind(on_press=self.scan_and_save_result)
+        reacord_and_show_result_button = Button(text="RECORD AND SHOW RESULT", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.20, "y": 0.45},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.3, 0.23), font_size="13sp")
-        but3.bind(on_press=self.result)
-        but4 = Button(text="RECORD AND SHOW DETECTED AREAS", background_color=(0.309, 0.933, 0.078, 4),
+        reacord_and_show_result_button.bind(on_press=self.scan_and_show_result)
+        record_and_show_cropped_result_button = Button(text="RECORD AND SHOW DETECTED AREAS", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.20, "y": 0.15},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.3, 0.23), font_size="13sp")
-        but4.bind(on_press=self.result_area)
-        but5 = Button(text="RECORD AND SAVE DETECTED AREAS >", background_color=(0.309, 0.933, 0.078, 4),
+        record_and_show_cropped_result_button.bind(on_press=self.scan_and_show_cropped_result)
+        record_and_save_cropped_result_button = Button(text="RECORD AND SAVE DETECTED AREAS >", background_color=(0.309, 0.933, 0.078, 4),
                       pos_hint={"x": 0.53, "y": 0.15},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.3, 0.23), font_size="13sp")
-        but5.bind(on_press=self.scan_area)
-        but2 = Button(text="< BACK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.035, "y": 0.85},
+        record_and_save_cropped_result_button.bind(on_press=self.scan_and_save_cropped_result)
+        go_back_button = Button(text="< BACK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.035, "y": 0.85},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.2, 0.1))
-        but2.bind(on_press=self.switch)
+        go_back_button.bind(on_press=self.switch_to_choose_input_screen)
 
-        layout.add_widget(label1)
-        layout.add_widget(but1)
-        layout.add_widget(but2)
-        layout.add_widget(but3)
-        layout.add_widget(but4)
-        layout.add_widget(but5)
+        layout.add_widget(title_label)
+        layout.add_widget(record_and_save_button)
+        layout.add_widget(go_back_button)
+        layout.add_widget(reacord_and_show_result_button)
+        layout.add_widget(record_and_show_cropped_result_button)
+        layout.add_widget(record_and_save_cropped_result_button)
         self.add_widget(layout)
-        self.model = ""
-        # self.event = ""
 
-    # def on_enter(self, *args):
-    #    global screen_to
-    #    try:
-    #        self.event = Clock.schedule_interval(self.check, 0.5)
-    #        os.listdir(app + "TO_PROCESS")
-    #        os.listdir(app + "PROCESSED")
-    #    except Exception as _:
-    #        screen_to = "pathimcam"
-    #        self.manager.transition = SlideTransition(direction="down")
-    #        self.manager.current = "no_folder_error"
-
-    # def on_leave(self, *args):
-    #    self.event.cancel()
+        self.loaded_model = ""
 
     def on_enter(self, *args):
-        global app
-        global app_assets
-        if getattr(sys, 'frozen', False):
-            app = str(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(sys.executable))))) + "/"
-            app_assets = str(os.path.dirname(sys.executable)) + "/"
-        elif __file__:
-            app = str(os.path.dirname(__file__)) + "/"
-            app_assets = str(os.path.dirname(__file__)) + "/"
-        self.model = model_from_json(open(app_assets + "assets/neuralnet.json", "r").read())
-        self.model.load_weights(app_assets + "assets/weights.h5")
+        self.loaded_model = model_from_json(open(path_to_app_assets + "/neuralnet.json", "r").read())
+        self.loaded_model.load_weights(path_to_app_assets + "/weights.h5")
 
-    def switch(self, *args):
+    def switch_to_choose_input_screen(self, *args):
         self.manager.transition = SlideTransition(direction="right")
-        self.manager.current = "choose"
+        self.manager.current = "ChooseInputScreen"
 
-    def scan(self, *args):
+    def scan_and_save_result(self, *args):
         try:
-            retry = True
             video = cv2.VideoCapture(cam_port)
-            height_test = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
-            width_test = video.get(cv2.CAP_PROP_FRAME_WIDTH)
-            width = str(width_test)
-            height = str(height_test)
+            height_value = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            width_value = video.get(cv2.CAP_PROP_FRAME_WIDTH)
+            width = str(width_value)
+            height = str(height_value)
             width = float(width)
             height = float(height)
-            capture = cv2.VideoWriter(app + "/ProcessedVideo=).avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
+            capture_to_write = cv2.VideoWriter(path_to_app + "/ProcessedVideo.avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
                                       (int(width), int(height)))
-            if switcher != "emotion":
-                while retry:
-                    k, frame_raw = video.read()
-                    frame = cv2.resize(frame_raw, (int(width), int(height)))
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    global classifier
-                    if switcher == "face":
-                        classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                    elif switcher == "body":
-                        classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_fullbody.xml")
-                    elif switcher == "eye":
-                        classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_eye.xml")
-                    elif switcher == "smile":
-                        classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
-                    detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-                    for (x, y, z, w) in detection:
-                        cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
-                    capture.write(frame)
-                    cv2.putText(frame, "PRESS SPACE TO STOP RECORDING", (10, 12),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                0.35,
-                                (20, 226, 20), 1)
-                    cv2.imshow("RECORDING", frame)
-                    cv2.namedWindow("RECORDING")
-                    for event in pygame.event.get():
-                        if event.type == pygame.KEYDOWN:
-                            if event.key == pygame.K_SPACE:
-                                retry = False
-                                cv2.destroyAllWindows()
-                                video.release()
-                                self.manager.transition = SlideTransition(direction="left")
-                                self.manager.current = "finalim"
-            elif switcher == "emotion":
-                while retry:
-                    k, frame_raw = video.read()
-                    frame = cv2.resize(frame_raw, (int(width), int(height)))
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    face_recogn = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                    detection = face_recogn.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
-                    for (x, y, z, w) in detection:
-                        cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
-                        cut_gray = gray[y: y + z, x: x + w]
-                        resized_cut_gray = cv2.resize(cut_gray, (48, 48))
-                        array_gray_im = ima.img_to_array(resized_cut_gray)
-                        array_gray_im_expanded = numpy.expand_dims(array_gray_im, axis=0)
-                        array_gray_im_expanded /= 255
-                        prediction = self.model.predict(array_gray_im_expanded)
-                        final_prediction = numpy.argmax(prediction[0])
-                        list_of_emotions = ['angry', 'disgusted', 'fearful', 'happy', 'sad', 'surprised', 'neutral']
-                        result = list_of_emotions[final_prediction]
-                        if z >= 210 and w >= 210:
-                            cv2.putText(frame, result, (int(x + 5), int(y + 45)), cv2.FONT_HERSHEY_SIMPLEX, 1.4,
-                                        (0, 0, 255), 2)
-                        else:
-                            cv2.putText(frame, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.35,
-                                        (0, 0, 255), 1)
-                    capture.write(frame)
-                    cv2.putText(frame, "PRESS SPACE TO STOP RECORDING", (10, 12),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                0.35,
-                                (20, 226, 20), 1)
-                    cv2.imshow("RECORDING", frame)
-                    cv2.namedWindow("RECORDING")
-                    for event in pygame.event.get():
-                        if event.type == pygame.KEYDOWN:
-                            if event.key == pygame.K_SPACE:
-                                retry = False
-                                cv2.destroyAllWindows()
-                                video.release()
-                                self.manager.transition = SlideTransition(direction="left")
-                                self.manager.current = "finalim"
-        except Exception as _:
-            self.manager.transition = SlideTransition(direction="down")
-            self.manager.current = "errorvidcam"
+            if area_for_scan != "emotion":
+                self._scan_and_save_body_part_result(capture_to_write, video, width, height)
+                return
+            self._scan_and_save_emotion_result(capture_to_write, video, width, height)
 
-    def scan_area(self, *args):
+        except Exception as e:
+            print("Error: " + str(e))
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "ErrorVideoCamScreen"
+
+    def scan_and_save_cropped_result(self, *args):
         try:
-            capture = cv2.VideoWriter(app + "/ProcessedVideo=).avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
+            capture_to_write = cv2.VideoWriter(path_to_app + "/ProcessedVideo.avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
                                       (520, 400))
-            retry = True
             video = cv2.VideoCapture(cam_port)
-            if switcher != "emotion":
-                while retry:
-                    k, frame_raw = video.read()
-                    frame = cv2.resize(frame_raw, (520, 400))
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    global classifier
-                    if switcher == "face":
-                        classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                    elif switcher == "body":
-                        classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_fullbody.xml")
-                    elif switcher == "eye":
-                        classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_eye.xml")
-                    elif switcher == "smile":
-                        classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
-                    detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-                    if detection == ():
-                        capture.write(frame)
-                        cv2.putText(frame, "PRESS SPACE ONCE OR TWICE TO STOP RECORDING", (10, 12),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    0.35,
-                                    (20, 226, 20), 1)
-                        cv2.putText(frame, "NO DETECTIONS", (200, 240),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    1,
-                                    (20, 226, 20), 1)
-                        cv2.imshow("RECORDING", frame)
-                        cv2.namedWindow("RECORDING")
-                    else:
-                        for (x, y, z, w) in detection:
-                            cut = frame[y:y + z, x:x + w]
-                            cut_image = cv2.resize(cut, (520, 400))
-                            capture.write(cut_image)
-                            cv2.putText(cut_image, "PRESS SPACE ONCE OR TWICE TO STOP RECORDING", (10, 12),
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        0.35,
-                                        (20, 226, 20), 1)
-                            cv2.imshow("RECORDING", cut_image)
-                            cv2.namedWindow("RECORDING")
-                    for event in pygame.event.get():
-                        if event.type == pygame.KEYDOWN:
-                            if event.key == pygame.K_SPACE:
-                                retry = False
-                                cv2.destroyAllWindows()
-                                video.release()
-                                self.manager.transition = SlideTransition(direction="left")
-                                self.manager.current = "finalim"
-            elif switcher == "emotion":
-                while retry:
-                    k, frame_raw = video.read()
-                    frame = cv2.resize(frame_raw, (520, 400))
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    face_recogn = cv2.CascadeClassifier(
-                        app_assets + "assets/haarcascade_frontalface_default.xml")
-                    detection = face_recogn.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
-                    if detection == ():
-                        capture.write(frame)
-                        cv2.putText(frame, "PRESS SPACE ONCE OR TWICE TO STOP RECORDING", (10, 12),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    0.35,
-                                    (20, 226, 20), 1)
-                        cv2.putText(frame, "NO DETECTIONS", (200, 240),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    1,
-                                    (20, 226, 20), 1)
-                    else:
-                        for (x, y, z, w) in detection:
-                            image_f = frame[y: y + z, x: x + w]
-                            image_final = cv2.resize(image_f, (520, 400))
-                            cut_gray = gray[y: y + z, x: x + w]
-                            resized_cut_gray = cv2.resize(cut_gray, (48, 48))
-                            array_gray_im = ima.img_to_array(resized_cut_gray)
-                            array_gray_im_expanded = numpy.expand_dims(array_gray_im, axis=0)
-                            array_gray_im_expanded /= 255
-                            prediction = self.model.predict(array_gray_im_expanded)
-                            final_prediction = numpy.argmax(prediction[0])
-                            list_of_emotions = ['angry', 'disgusted', 'fearful', 'happy', 'sad', 'surprised',
-                                                'neutral']
-                            result = list_of_emotions[final_prediction]
-                            cv2.putText(image_final, result, (10, 45),
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        1.4,
-                                        (0, 0, 255), 2)
-                            capture.write(image_final)
-                            cv2.putText(image_final, "PRESS SPACE ONCE OR TWICE TO STOP RECORDING", (10, 12),
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        0.35,
-                                        (20, 226, 20), 1)
-                            frame = image_final
-                    cv2.imshow("RECORDING", frame)
-                    cv2.namedWindow("RECORDING")
-                    for event in pygame.event.get():
-                        if event.type == pygame.KEYDOWN:
-                            if event.key == pygame.K_SPACE:
-                                retry = False
-                                cv2.destroyAllWindows()
-                                video.release()
-                                self.manager.transition = SlideTransition(direction="left")
-                                self.manager.current = "finalim"
-        except Exception as _:
+            if area_for_scan != "emotion":
+                self._scan_and_save_body_part_cropped_result(capture_to_write, video)
+                return
+            self._scan_and_save_emotion_cropped_result(capture_to_write, video)
+        except Exception as e:
+            print("Error: " + str(e))
             self.manager.transition = SlideTransition(direction="down")
-            self.manager.current = "errorvidcam"
+            self.manager.current = "ErrorVideoCamScreen"
 
-    def result(self, *args):
+    def scan_and_show_result(self, *args):
         try:
-            retry = True
             video = cv2.VideoCapture(cam_port)
-            height_test = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
-            width_test = video.get(cv2.CAP_PROP_FRAME_WIDTH)
-            width = str(width_test)
-            height = str(height_test)
+            height_value = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            width_value = video.get(cv2.CAP_PROP_FRAME_WIDTH)
+            width = str(width_value)
+            height = str(height_value)
             width = float(width)
             height = float(height)
-            if switcher != "emotion":
-                while retry:
-                    k, frame_raw = video.read()
-                    frame = cv2.resize(frame_raw, (int(width), int(height)))
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    global classifier
-                    if switcher == "face":
-                        classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                    elif switcher == "body":
-                        classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_fullbody.xml")
-                    elif switcher == "eye":
-                        classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_eye.xml")
-                    elif switcher == "smile":
-                        classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
-                    detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-                    if detection == ():
-                        cv2.putText(frame, "NO DETECTIONS", (200, 240),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    1,
-                                    (20, 226, 20), 1)
-                    else:
-                        for (x, y, z, w) in detection:
-                            cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+            if area_for_scan != "emotion":
+                self._scan_and_show_body_part_result(video, width, height)
+                return
+            self._scan_and_show_emotion_result(video, width, height)
+        except Exception as e:
+            print("Error: " + str(e))
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "ErrorVideoCamScreen"
+
+    def scan_and_show_cropped_result(self, *args):
+        try:
+            video = cv2.VideoCapture(cam_port)
+            if area_for_scan != "emotion":
+                self._scan_and_show_body_part_cropped_result(video)
+                return
+            self._scan_and_show_emotion_cropped_result(video)
+        except Exception as e:
+            print("Error: " + str(e))
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "ErrorVideoCamScreen"
+
+    def _scan_and_save_body_part_result(self, capture_to_write, video, width, height):
+        retry = True
+        while retry:
+            k, frame_raw = video.read()
+            frame = cv2.resize(frame_raw, (int(width), int(height)))
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            body_classifier = get_body_classifier()
+            detection = body_classifier.detectMultiScale(gray_frame, scaleFactor=1.2, minNeighbors=5)
+            for (x, y, z, w) in detection:
+                cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+            capture_to_write.write(frame)
+            cv2.putText(frame, "PRESS SPACE TO STOP RECORDING", (10, 12),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.35,
+                        (20, 226, 20), 1)
+            cv2.imshow("RECORDING", frame)
+            cv2.namedWindow("RECORDING")
+
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    retry = False
+                    cv2.destroyAllWindows()
+                    video.release()
+                    self.manager.transition = SlideTransition(direction="left")
+                    self.manager.current = "ProcessedScreen"
+
+    def _scan_and_save_emotion_result(self, capture_to_write, video, width, height):
+        retry = True
+        while retry:
+            k, frame_raw = video.read()
+            frame = cv2.resize(frame_raw, (int(width), int(height)))
+            gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
+            detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+            for (x, y, z, w) in detection:
+                cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+                gray_image_cropped = gray_image[y: y + z, x: x + w]
+                resized_gray_image_cropped = cv2.resize(gray_image_cropped, (48, 48))
+                gray_image_array = ima.img_to_array(resized_gray_image_cropped)
+                gray_image_array_expanded = numpy.expand_dims(gray_image_array, axis=0)
+                gray_image_array_expanded /= 255
+                prediction = self.loaded_model.predict(gray_image_array_expanded)
+                final_prediction = numpy.argmax(prediction[0])
+                result = list_of_emotions[final_prediction]
+                if z >= 210 and w >= 210:
+                    cv2.putText(frame, result, (int(x + 5), int(y + 45)), cv2.FONT_HERSHEY_SIMPLEX, 1.4,
+                                (0, 0, 255), 2)
+                else:
+                    cv2.putText(frame, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.35,
+                                (0, 0, 255), 1)
+            capture_to_write.write(frame)
+            cv2.putText(frame, "PRESS SPACE TO STOP RECORDING", (10, 12),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.35,
+                        (20, 226, 20), 1)
+            cv2.imshow("RECORDING", frame)
+            cv2.namedWindow("RECORDING")
+
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    retry = False
+                    cv2.destroyAllWindows()
+                    video.release()
+                    self.manager.transition = SlideTransition(direction="left")
+                    self.manager.current = "ProcessedScreen"
+
+    def _scan_and_save_body_part_cropped_result(self, capture_to_write, video):
+        retry = True
+        while retry:
+            k, frame_raw = video.read()
+            frame = cv2.resize(frame_raw, (520, 400))
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            body_classifier = get_body_classifier()
+            detection = body_classifier.detectMultiScale(gray_frame, scaleFactor=1.2, minNeighbors=5)
+
+            if detection == ():
+                capture_to_write.write(frame)
+                cv2.putText(frame, "PRESS SPACE ONCE OR TWICE TO STOP RECORDING", (10, 12),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.35,
+                            (20, 226, 20), 1)
+                cv2.putText(frame, "NO DETECTIONS", (200, 240),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            1,
+                            (20, 226, 20), 1)
+                cv2.imshow("RECORDING", frame)
+                cv2.namedWindow("RECORDING")
+            else:
+                for (x, y, z, w) in detection:
+                    cut = frame[y:y + z, x:x + w]
+                    cut_image = cv2.resize(cut, (520, 400))
+                    capture_to_write.write(cut_image)
+                    cv2.putText(cut_image, "PRESS SPACE ONCE OR TWICE TO STOP RECORDING", (10, 12),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.35,
+                                (20, 226, 20), 1)
+                    cv2.imshow("RECORDING", cut_image)
+                    cv2.namedWindow("RECORDING")
+
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    retry = False
+                    cv2.destroyAllWindows()
+                    video.release()
+                    self.manager.transition = SlideTransition(direction="left")
+                    self.manager.current = "ProcessedScreen"
+
+    def _scan_and_save_emotion_cropped_result(self, capture_to_write, video):
+        retry = True
+        while retry:
+            k, frame_raw = video.read()
+            frame = cv2.resize(frame_raw, (520, 400))
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            face_classifier = cv2.CascadeClassifier(
+                path_to_app_assets + "/haarcascade_frontalface_default.xml")
+            detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+
+            if detection == ():
+                capture_to_write.write(frame)
+                cv2.putText(frame, "PRESS SPACE ONCE OR TWICE TO STOP RECORDING", (10, 12),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.35,
+                            (20, 226, 20), 1)
+                cv2.putText(frame, "NO DETECTIONS", (200, 240),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            1,
+                            (20, 226, 20), 1)
+            else:
+                for (x, y, z, w) in detection:
+                    image_cropped = frame[y: y + z, x: x + w]
+                    image_result = cv2.resize(image_cropped, (520, 400))
+                    gray_frame_cropped = gray_frame[y: y + z, x: x + w]
+                    resized_gray_frame_cropped = cv2.resize(gray_frame_cropped, (48, 48))
+                    gray_frame_array = ima.img_to_array(resized_gray_frame_cropped)
+                    gray_frame_array_expanded = numpy.expand_dims(gray_frame_array, axis=0)
+                    gray_frame_array_expanded /= 255
+                    prediction = self.loaded_model.predict(gray_frame_array_expanded)
+                    final_prediction = numpy.argmax(prediction[0])
+                    result = list_of_emotions[final_prediction]
+                    cv2.putText(image_result, result, (10, 45),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                1.4,
+                                (0, 0, 255), 2)
+                    capture_to_write.write(image_result)
+                    cv2.putText(image_result, "PRESS SPACE ONCE OR TWICE TO STOP RECORDING", (10, 12),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.35,
+                                (20, 226, 20), 1)
+                    frame = image_result
+
+            cv2.imshow("RECORDING", frame)
+            cv2.namedWindow("RECORDING")
+
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    retry = False
+                    cv2.destroyAllWindows()
+                    video.release()
+                    self.manager.transition = SlideTransition(direction="left")
+                    self.manager.current = "ProcessedScreen"
+
+    def _scan_and_show_emotion_result(self, video, width, height):
+        retry = True
+        while retry:
+            k, frame_raw = video.read()
+            frame = cv2.resize(frame_raw, (int(width), int(height)))
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            face_classifier = cv2.CascadeClassifier(
+                path_to_app_assets + "/haarcascade_frontalface_default.xml")
+            detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+
+            if detection == ():
+                cv2.putText(frame, "NO DETECTIONS", (200, 240),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            1,
+                            (20, 226, 20), 1)
+                for (x, y, z, w) in detection:
+                    cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
                     cv2.putText(frame, "PRESS SPACE ONCE/TWICE TO STOP SHOWING VIDEO", (10, 15),
                                 cv2.FONT_HERSHEY_SIMPLEX,
                                 0.35,
                                 (20, 226, 20), 1)
-                    cv2.imshow("PREVIEW", frame)
-                    cv2.namedWindow("PREVIEW")
-                    for event in pygame.event.get():
-                        if event.type == pygame.KEYDOWN:
-                            if event.key == pygame.K_SPACE:
-                                retry = False
-                                cv2.destroyAllWindows()
-                                video.release()
-            elif switcher == "emotion":
-                retry = True
-                while retry:
-                    k, frame_raw = video.read()
-                    frame = cv2.resize(frame_raw, (int(width), int(height)))
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    face_recogn = cv2.CascadeClassifier(
-                        app_assets + "assets/haarcascade_frontalface_default.xml")
-                    detection = face_recogn.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
-                    if detection == ():
-                        cv2.putText(frame, "NO DETECTIONS", (200, 240),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    1,
-                                    (20, 226, 20), 1)
-                        for (x, y, z, w) in detection:
-                            cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
-                            cv2.putText(frame, "PRESS SPACE ONCE/TWICE TO STOP SHOWING VIDEO", (10, 15),
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        0.35,
-                                        (20, 226, 20), 1)
-                    else:
-                        cv2.putText(frame, "PRESS SPACE ONCE/TWICE TO STOP SHOWING VIDEO", (10, 40),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    0.35,
-                                    (20, 226, 20), 1)
-                        for (x, y, z, w) in detection:
-                            cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
-                            cut_gray = gray[y: y + z, x: x + w]
-                            resized_cut_gray = cv2.resize(cut_gray, (48, 48))
-                            array_gray_im = ima.img_to_array(resized_cut_gray)
-                            array_gray_im_expanded = numpy.expand_dims(array_gray_im, axis=0)
-                            array_gray_im_expanded /= 255
-                            prediction = self.model.predict(array_gray_im_expanded)
-                            final_prediction = numpy.argmax(prediction[0])
-                            list_of_emotions = ['angry', 'disgusted', 'fearful', 'happy', 'sad', 'surprised',
-                                                'neutral']
-                            result = list_of_emotions[final_prediction]
-                            if z >= 210 and w >= 210:
-                                cv2.putText(frame, result, (int(x + 5), int(y + 45)), cv2.FONT_HERSHEY_SIMPLEX,
-                                            1.4,
-                                            (0, 0, 255), 2)
-                            else:
-                                cv2.putText(frame, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX,
-                                            0.35,
-                                            (0, 0, 255), 1)
-                    cv2.imshow("PREVIEW", frame)
-                    cv2.namedWindow("PREVIEW")
-                    for event in pygame.event.get():
-                        if event.type == pygame.KEYDOWN:
-                            if event.key == pygame.K_SPACE:
-                                retry = False
-                                cv2.destroyAllWindows()
-        except Exception as _:
-            self.manager.transition = SlideTransition(direction="down")
-            self.manager.current = "errorvidcam"
+            else:
+                cv2.putText(frame, "PRESS SPACE ONCE/TWICE TO STOP SHOWING VIDEO", (10, 40),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.35,
+                            (20, 226, 20), 1)
 
-    def result_area(self, *args):
-        try:
-            retry = True
-            video = cv2.VideoCapture(cam_port)
-            if switcher != "emotion":
-                while retry:
-                    k, frame_raw = video.read()
-                    frame = cv2.resize(frame_raw, (520, 400))
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    global classifier
-                    if switcher == "face":
-                        classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                    elif switcher == "body":
-                        classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_fullbody.xml")
-                    elif switcher == "eye":
-                        classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_eye.xml")
-                    elif switcher == "smile":
-                        classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
-                    detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-                    if detection == ():
-                        cv2.putText(frame, "PRESS SPACE ONCE OR TWICE TO STOP SHOWING VIDEO", (10, 15),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    0.35,
-                                    (20, 226, 20), 1)
-                        cv2.putText(frame, "NO DETECTIONS", (140, 205),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    1,
-                                    (20, 226, 20), 1)
+                for (x, y, z, w) in detection:
+                    cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+                    gray_frame_cropped = gray_frame[y: y + z, x: x + w]
+                    resized_gray_frame_cropped = cv2.resize(gray_frame_cropped, (48, 48))
+                    gray_frame_array = ima.img_to_array(resized_gray_frame_cropped)
+                    gray_frame_array_expanded = numpy.expand_dims(gray_frame_array, axis=0)
+                    gray_frame_array_expanded /= 255
+                    prediction = self.loaded_model.predict(gray_frame_array_expanded)
+                    final_prediction = numpy.argmax(prediction[0])
+                    result = list_of_emotions[final_prediction]
+                    if z >= 210 and w >= 210:
+                        cv2.putText(frame, result, (int(x + 5), int(y + 45)), cv2.FONT_HERSHEY_SIMPLEX,
+                                    1.4,
+                                    (0, 0, 255), 2)
                     else:
-                        for (x, y, z, w) in detection:
-                            cut = frame[y:y + z, x:x + w]
-                            cut_image = cv2.resize(cut, (520, 400))
-                            cv2.putText(cut_image, "PRESS SPACE ONCE OR TWICE TO STOP SHOWING VIDEO", (10, 15),
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        0.35,
-                                        (20, 226, 20), 1)
-                            frame = cut_image
-                    cv2.imshow("PREVIEW", frame)
-                    cv2.namedWindow("PREVIEW")
-                    for event in pygame.event.get():
-                        if event.type == pygame.KEYDOWN:
-                            if event.key == pygame.K_SPACE:
-                                retry = False
-                                cv2.destroyAllWindows()
-                                video.release()
-            elif switcher == "emotion":
-                while retry:
-                    k, frame_raw = video.read()
-                    frame = cv2.resize(frame_raw, (520, 400))
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    face_recogn = cv2.CascadeClassifier(
-                        app_assets + "assets/haarcascade_frontalface_default.xml")
-                    detection = face_recogn.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
-                    if detection == ():
-                        cv2.putText(frame, "PRESS SPACE ONCE OR TWICE TO STOP SHOWING VIDEO", (10, 15),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
+                        cv2.putText(frame, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX,
                                     0.35,
-                                    (20, 226, 20), 1)
-                        cv2.putText(frame, "NO DETECTIONS", (140, 205),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    1,
-                                    (20, 226, 20), 1)
-                    else:
-                        for (x, y, z, w) in detection:
-                            image_f = frame[y: y + z, x: x + w]
-                            image_final = cv2.resize(image_f, (520, 400))
-                            cut_gray = gray[y: y + z, x: x + w]
-                            resized_cut_gray = cv2.resize(cut_gray, (48, 48))
-                            array_gray_im = ima.img_to_array(resized_cut_gray)
-                            array_gray_im_expanded = numpy.expand_dims(array_gray_im, axis=0)
-                            array_gray_im_expanded /= 255
-                            prediction = self.model.predict(array_gray_im_expanded)
-                            final_prediction = numpy.argmax(prediction[0])
-                            list_of_emotions = ['angry', 'disgusted', 'fearful', 'happy', 'sad', 'surprised',
-                                                'neutral']
-                            result = list_of_emotions[final_prediction]
-                            cv2.putText(image_final, result, (10, 50),
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        1.4,
-                                        (0, 0, 255), 2)
-                            cv2.putText(image_final, "PRESS SPACE TWICE TO CLOSE THE VIDEO", (10, 11),
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        0.30,
-                                        (20, 226, 20), 1)
-                            frame = image_final
-                    cv2.imshow("PREVIEW", frame)
-                    cv2.namedWindow("PREVIEW")
-                    for event in pygame.event.get():
-                        if event.type == pygame.KEYDOWN:
-                            if event.key == pygame.K_SPACE:
-                                retry = False
-                                cv2.destroyAllWindows()
-                                video.release()
-        except Exception as _:
-            self.manager.transition = SlideTransition(direction="down")
-            self.manager.current = "errorvidcam"
+                                    (0, 0, 255), 1)
+
+            cv2.imshow("PREVIEW", frame)
+            cv2.namedWindow("PREVIEW")
+
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_SPACE:
+                        retry = False
+                        cv2.destroyAllWindows()
+
+    def _scan_and_show_emotion_cropped_result(self, video):
+        retry = True
+        while retry:
+            k, frame_raw = video.read()
+            frame = cv2.resize(frame_raw, (520, 400))
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
+            detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+
+            if detection == ():
+                cv2.putText(frame, "PRESS SPACE ONCE OR TWICE TO STOP SHOWING VIDEO", (10, 15),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.35,
+                            (20, 226, 20), 1)
+                cv2.putText(frame, "NO DETECTIONS", (140, 205),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            1,
+                            (20, 226, 20), 1)
+            else:
+                for (x, y, z, w) in detection:
+                    frame_cropped = frame[y: y + z, x: x + w]
+                    frame_result = cv2.resize(frame_cropped, (520, 400))
+                    gray_frame_cropped = gray_frame[y: y + z, x: x + w]
+                    resized_gray_frame_cropped = cv2.resize(gray_frame_cropped, (48, 48))
+                    gray_frame_array = ima.img_to_array(resized_gray_frame_cropped)
+                    gray_frame_array_expanded = numpy.expand_dims(gray_frame_array, axis=0)
+                    gray_frame_array_expanded /= 255
+                    prediction = self.loaded_model.predict(gray_frame_array_expanded)
+                    final_prediction = numpy.argmax(prediction[0])
+                    result = list_of_emotions[final_prediction]
+                    cv2.putText(frame_result, result, (10, 50),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                1.4,
+                                (0, 0, 255), 2)
+                    cv2.putText(frame_result, "PRESS SPACE TWICE TO CLOSE THE VIDEO", (10, 11),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.30,
+                                (20, 226, 20), 1)
+                    frame = frame_result
+
+            cv2.imshow("PREVIEW", frame)
+            cv2.namedWindow("PREVIEW")
+
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    retry = False
+                    cv2.destroyAllWindows()
+                    video.release()
+
+    @staticmethod
+    def _scan_and_show_body_part_result(video, width, height):
+        retry = True
+        while retry:
+            k, frame_raw = video.read()
+            frame = cv2.resize(frame_raw, (int(width), int(height)))
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            body_classifier = get_body_classifier()
+            detection = body_classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
+            if detection == ():
+                cv2.putText(frame, "NO DETECTIONS", (200, 240),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            1,
+                            (20, 226, 20), 1)
+            else:
+                for (x, y, z, w) in detection:
+                    cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+
+            cv2.putText(frame, "PRESS SPACE ONCE/TWICE TO STOP SHOWING VIDEO", (10, 15),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.35,
+                        (20, 226, 20), 1)
+            cv2.imshow("PREVIEW", frame)
+            cv2.namedWindow("PREVIEW")
+
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                        retry = False
+                        cv2.destroyAllWindows()
+                        video.release()
+
+    @staticmethod
+    def _scan_and_show_body_part_cropped_result(video):
+        retry = True
+        while retry:
+            k, frame_raw = video.read()
+            frame = cv2.resize(frame_raw, (520, 400))
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            body_classifier = get_body_classifier()
+            detection = body_classifier.detectMultiScale(gray_frame, scaleFactor=1.2, minNeighbors=5)
+
+            if detection == ():
+                cv2.putText(frame, "PRESS SPACE ONCE OR TWICE TO STOP SHOWING VIDEO", (10, 15),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.35,
+                            (20, 226, 20), 1)
+                cv2.putText(frame, "NO DETECTIONS", (140, 205),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            1,
+                            (20, 226, 20), 1)
+            else:
+                for (x, y, z, w) in detection:
+                    frame_cropped = frame[y:y + z, x:x + w]
+                    resized_frame_cropped = cv2.resize(frame_cropped, (520, 400))
+                    cv2.putText(resized_frame_cropped, "PRESS SPACE ONCE OR TWICE TO STOP SHOWING VIDEO", (10, 15),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.35,
+                                (20, 226, 20), 1)
+                    frame = resized_frame_cropped
+
+            cv2.imshow("PREVIEW", frame)
+            cv2.namedWindow("PREVIEW")
+
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    retry = False
+                    cv2.destroyAllWindows()
+                    video.release()
 
 
-class finalim(Screen):
+class ProcessedScreen(Screen):
     def __init__(self, **kwargs):
-        super(finalim, self).__init__(**kwargs)
+        super(ProcessedScreen, self).__init__(**kwargs)
         layout = FloatLayout(size=(350, 600))
 
-        label1 = Label(
-            text="$$$ YOUR PROCESSED FILE HAS BEEN SAVED IN THE FOLDER PROCESSED (located in the same folder where your app is) $$$",
+        result_label = Label(
+            text="$$$ YOUR PROCESSED FILE HAS BEEN SAVED IN THE DIRECTORY OF THE APP $$$",
             pos_hint={"x": 0, "y": 0.05}, color=(0.309, 0.933, 0.078, 4), font_size="12.5sp")
-        but1 = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.30, "y": 0.32},
+        acknowledge_button = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.30, "y": 0.32},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.4, 0.10))
-        but1.bind(on_press=self.switch)
-        img = Image(source=app_assets + "assets/logo2.png", size_hint=(0.15, .3), pos_hint={"x": 0.423, "y": 0.65})
+        acknowledge_button.bind(on_press=self.switch_to_welcome_screen)
+        logo_image = Image(source=path_to_app_assets + "/logo2.png", size_hint=(0.15, .3), pos_hint={"x": 0.423, "y": 0.65})
 
-        layout.add_widget(label1)
-        layout.add_widget(but1)
-        layout.add_widget(img)
+        layout.add_widget(result_label)
+        layout.add_widget(acknowledge_button)
+        layout.add_widget(logo_image)
         self.add_widget(layout)
 
-    def switch(self, *args):
+    def switch_to_welcome_screen(self, *args):
         self.manager.transition = SlideTransition(direction="left")
-        self.manager.current = "welcome"
+        self.manager.current = "WelcomeScreen"
 
 
-class nodetections(Screen):
+class NoDetectionsIdentifiedOnImageScreen(Screen):
     def __init__(self, **kwargs):
-        super(nodetections, self).__init__(**kwargs)
+        super(NoDetectionsIdentifiedOnImageScreen, self).__init__(**kwargs)
         layout = FloatLayout(size=(350, 600))
 
-        label1 = Label(text="NO DETECTIONS",
+        no_detections_label = Label(text="NO DETECTIONS IDENTIFIED",
                        pos_hint={"x": 0, "y": 0.09}, color=(0.309, 0.933, 0.078, 4), font_size="16sp")
-        but1 = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.35, "y": 0.4},
+        acknowledge_button = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.35, "y": 0.4},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.3, 0.10))
-        but1.bind(on_press=self.switch)
+        acknowledge_button.bind(on_press=self.switch_to_image_selection_screen)
 
-        layout.add_widget(label1)
-        layout.add_widget(but1)
+        layout.add_widget(no_detections_label)
+        layout.add_widget(acknowledge_button)
         self.add_widget(layout)
 
-    def switch(self, *args):
+    def switch_to_image_selection_screen(self, *args):
         self.manager.transition = SlideTransition(direction="up")
-        self.manager.current = "pathim"
+        self.manager.current = "ChooseImageScreen"
 
 
-class nodetectionscam(Screen):
+class NoDetectionsIdentifiedOnImageCamScreen(Screen):
     def __init__(self, **kwargs):
-        super(nodetectionscam, self).__init__(**kwargs)
+        super(NoDetectionsIdentifiedOnImageCamScreen, self).__init__(**kwargs)
         layout = FloatLayout(size=(350, 600))
 
-        label1 = Label(text="NO DETECTIONS",
+        no_detection_label = Label(text="NO DETECTIONS IDENTIFIED",
                        pos_hint={"x": 0, "y": 0.09}, color=(0.309, 0.933, 0.078, 4), font_size="16sp")
-        but1 = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.35, "y": 0.4},
+        acknowledge_button = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.35, "y": 0.4},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.3, 0.10))
-        but1.bind(on_press=self.switch)
+        acknowledge_button.bind(on_press=self.switch_to_image_cam_selection_screen)
 
-        layout.add_widget(label1)
-        layout.add_widget(but1)
+        layout.add_widget(no_detection_label)
+        layout.add_widget(acknowledge_button)
         self.add_widget(layout)
 
-    def switch(self, *args):
+    def switch_to_image_cam_selection_screen(self, *args):
         self.manager.transition = SlideTransition(direction="up")
-        self.manager.current = "pathimcam"
+        self.manager.current = "ChooseImageCamInputScreen"
 
 
-class errorimcam(Screen):
+class ErrorImageCamScreen(Screen):
     def __init__(self, **kwargs):
-        super(errorimcam, self).__init__(**kwargs)
+        super(ErrorImageCamScreen, self).__init__(**kwargs)
         layout = FloatLayout(size=(350, 600))
 
-        label1 = Label(text="ERROR: EITHER NAME/TYPE OF YOUR FOLDER/FILE IS WRONG OR FOLDER/FILE DOESN'T EXIST",
+        error_label = Label(text="ERROR: CAMERA FAILED TO INITIALIZE",
                        pos_hint={"x": 0, "y": 0.09}, color=(0.309, 0.933, 0.078, 4), font_size="13sp")
-        but1 = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.30, "y": 0.4},
+        acknowledge_button = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.30, "y": 0.4},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.4, 0.10))
-        but1.bind(on_press=self.switch)
+        acknowledge_button.bind(on_press=self.switch_to_image_cam_selection_screen)
 
-        layout.add_widget(label1)
-        layout.add_widget(but1)
+        layout.add_widget(error_label)
+        layout.add_widget(acknowledge_button)
         self.add_widget(layout)
 
-    def switch(self, *args):
+    def switch_to_image_cam_selection_screen(self, *args):
         self.manager.transition = SlideTransition(direction="up")
-        self.manager.current = "pathimcam"
+        self.manager.current = "ChooseImageCamInputScreen"
 
 
-class errorvid(Screen):
+class ErrorVideoCamScreen(Screen):
     def __init__(self, **kwargs):
-        super(errorvid, self).__init__(**kwargs)
+        super(ErrorVideoCamScreen, self).__init__(**kwargs)
         layout = FloatLayout(size=(350, 600))
 
-        label1 = Label(text="ERROR: EITHER NAME/TYPE OF YOUR FOLDER/FILE IS WRONG OR FOLDER/FILE DOESN'T EXIST",
+        error_label = Label(text="ERROR: EITHER NAME/TYPE OF YOUR FOLDER/FILE IS WRONG OR FOLDER/FILE DOESN'T EXIST",
                        pos_hint={"x": 0, "y": 0.09}, color=(0.309, 0.933, 0.078, 4), font_size="13sp")
-        but1 = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.30, "y": 0.4},
+        acknowledge_button = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.30, "y": 0.4},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.4, 0.10))
-        but1.bind(on_press=self.switch)
+        acknowledge_button.bind(on_press=self.switch_to_video_cam_selection_screen)
 
-        layout.add_widget(label1)
-        layout.add_widget(but1)
+        layout.add_widget(error_label)
+        layout.add_widget(acknowledge_button)
         self.add_widget(layout)
 
-    def switch(self, *args):
+    def switch_to_video_cam_selection_screen(self, *args):
         self.manager.transition = SlideTransition(direction="up")
-        self.manager.current = "pathvid"
+        self.manager.current = "ChooseVideoCamInputScreen"
 
 
-class errorvidcam(Screen):
+class ErrorImageSelectionScreen(Screen):
     def __init__(self, **kwargs):
-        super(errorvidcam, self).__init__(**kwargs)
+        super(ErrorImageSelectionScreen, self).__init__(**kwargs)
         layout = FloatLayout(size=(350, 600))
 
-        label1 = Label(text="ERROR: EITHER NAME/TYPE OF YOUR FOLDER/FILE IS WRONG OR FOLDER/FILE DOESN'T EXIST",
+        error_label = Label(text="ERROR: EITHER NAME/TYPE OF YOUR FOLDER/FILE IS WRONG OR FOLDER/FILE DOESN'T EXIST",
                        pos_hint={"x": 0, "y": 0.09}, color=(0.309, 0.933, 0.078, 4), font_size="13sp")
-        but1 = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.30, "y": 0.4},
+        acknowledge_button = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.30, "y": 0.4},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.4, 0.10))
-        but1.bind(on_press=self.switch)
+        acknowledge_button.bind(on_press=self.switch_to_image_selection_screen)
 
-        layout.add_widget(label1)
-        layout.add_widget(but1)
+        layout.add_widget(error_label)
+        layout.add_widget(acknowledge_button)
         self.add_widget(layout)
 
-    def switch(self, *args):
+    def switch_to_image_selection_screen(self, *args):
         self.manager.transition = SlideTransition(direction="up")
-        self.manager.current = "pathvidcam"
+        self.manager.current = "ChooseImageScreen"
 
 
-class loading_scan(Screen):
+class ErrorVideoSelectionScreen(Screen):
     def __init__(self, **kwargs):
-        super(loading_scan, self).__init__(**kwargs)
+        super(ErrorVideoSelectionScreen, self).__init__(**kwargs)
         layout = FloatLayout(size=(350, 600))
-        wimg = AsyncImage(source=app_assets + 'assets/loading.gif',
+
+        error_label = Label(text="ERROR: EITHER NAME/TYPE OF YOUR FOLDER/FILE IS WRONG OR FOLDER/FILE DOESN'T EXIST",
+                       pos_hint={"x": 0, "y": 0.09}, color=(0.309, 0.933, 0.078, 4), font_size="13sp")
+        acknowledge_button = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.30, "y": 0.4},
+                      color=(0.141, 0.054, 0.078, 4), size_hint=(0.4, 0.10))
+        acknowledge_button.bind(on_press=self.switch_to_video_selection_screen)
+
+        layout.add_widget(error_label)
+        layout.add_widget(acknowledge_button)
+        self.add_widget(layout)
+
+    def switch_to_video_selection_screen(self, *args):
+        self.manager.transition = SlideTransition(direction="up")
+        self.manager.current = "ChooseVideoScreen"
+
+
+class LoadingAndSavingScannedVideoScreen(Screen):
+    def __init__(self, **kwargs):
+        super(LoadingAndSavingScannedVideoScreen, self).__init__(**kwargs)
+        layout = FloatLayout(size=(350, 600))
+        loading_image = AsyncImage(source=path_to_app_assets + '/loading.gif',
                           size_hint=(0.15, 1 / 4),
                           keep_ratio=False,
                           allow_stretch=True,
                           pos_hint={'x': 0.435, 'y': 0.4})
-        label1 = Label(text="PROCESSING", pos_hint={"x": 0.005, "y": 0.20}, color=(0.309, 0.933, 0.078, 4))
-        label2 = Label(text="30 seconds of video get processed approximately for 1 minute 15 seconds",
+        processing_label = Label(text="PROCESSING", pos_hint={"x": 0.005, "y": 0.20}, color=(0.309, 0.933, 0.078, 4))
+        processing_note_label = Label(text="30 seconds of video get processed approximately for 1 minute 15 seconds",
                        pos_hint={"x": 0.005, "y": -0.3}, color=(0.309, 0.933, 0.078, 4))
-        layout.add_widget(wimg)
-        layout.add_widget(label1)
-        layout.add_widget(label2)
+        layout.add_widget(loading_image)
+        layout.add_widget(processing_label)
+        layout.add_widget(processing_note_label)
         self.add_widget(layout)
-        self.model = ""
+        self.loaded_model = ""
 
     def on_enter(self, *args):
         try:
-            self.model = model_from_json(open(app_assets + "assets/neuralnet.json", "r").read())
-            self.model.load_weights(app_assets + "assets/weights.h5")
+            self.loaded_model = model_from_json(open(path_to_app_assets + "/neuralnet.json", "r").read())
+            self.loaded_model.load_weights(path_to_app_assets + "/weights.h5")
             audio = AudioFileClip(selected_file_path)
-            audio.write_audiofile(app + "/audio.mp3")
-            retry = True
+            audio.write_audiofile(path_to_app + "/audio.mp3")
             video = cv2.VideoCapture(selected_file_path)
-            height_test = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
-            width_test = video.get(cv2.CAP_PROP_FRAME_WIDTH)
-            width = str(width_test)
-            height = str(height_test)
+            height_value = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            width_value = video.get(cv2.CAP_PROP_FRAME_WIDTH)
+            width = str(width_value)
+            height = str(height_value)
             width = float(width)
             height = float(height)
-            capture = cv2.VideoWriter(app + "/ProcessedVideo=).avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
+            capture_to_write = cv2.VideoWriter(path_to_app + "/ProcessedVideo.avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
                                       (int(width), int(height)))
             try:
-                if switcher != "emotion":
-                    while retry:
-                        k, frame_raw = video.read()
-                        frame = cv2.resize(frame_raw, (int(width), int(height)))
-                        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                        global classifier
-                        if switcher == "face":
-                            classifier = cv2.CascadeClassifier(
-                                app_assets + "assets/haarcascade_frontalface_default.xml")
-                        elif switcher == "body":
-                            classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_fullbody.xml")
-                        elif switcher == "eye":
-                            classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_eye.xml")
-                        elif switcher == "smile":
-                            classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
-                        detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-                        for (x, y, z, w) in detection:
-                            cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
-                        capture.write(frame)
-                elif switcher == "emotion":
-                    while retry:
-                        k, frame_raw = video.read()
-                        frame = cv2.resize(frame_raw, (int(width), int(height)))
-                        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                        face_recogn = cv2.CascadeClassifier(app_assets + "assets/haarcascade_frontalface_default.xml")
-                        detection = face_recogn.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
-                        for (x, y, z, w) in detection:
-                            cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
-                            cut_gray = gray[y: y + z, x: x + w]
-                            resized_cut_gray = cv2.resize(cut_gray, (48, 48))
-                            array_gray_im = ima.img_to_array(resized_cut_gray)
-                            array_gray_im_expanded = numpy.expand_dims(array_gray_im, axis=0)
-                            array_gray_im_expanded /= 255
-                            prediction = self.model.predict(array_gray_im_expanded)
-                            final_prediction = numpy.argmax(prediction[0])
-                            list_of_emotions = ['angry', 'disgusted', 'fearful', 'happy', 'sad', 'surprised', 'neutral']
-                            result = list_of_emotions[final_prediction]
-                            if z >= 210 and w >= 210:
-                                cv2.putText(frame, result, (int(x + 5), int(y + 45)), cv2.FONT_HERSHEY_SIMPLEX, 1.4,
-                                            (0, 0, 255), 2)
-                            else:
-                                cv2.putText(frame, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.35,
-                                            (0, 0, 255), 1)
-                        capture.write(frame)
-            except Exception as _:
+                if area_for_scan != "emotion":
+                    self._scan_and_write_video_for_body_parts(capture_to_write, video, height, width)
+                self._scan_and_write_video_for_emotion(capture_to_write, video, height, width)
+            except Exception as e:
+                # at the end of the video exception will be thrown so it is only a warning
+                print("Warning: " + str(e))
                 video.release()
-                try:
-                    input_audio = ffmpeg.input(app + "/audio.mp3")
-                    input_video = ffmpeg.input(app + "/ProcessedVideoWithAudio.avi")
-                    (
-                        ffmpeg
-                            .concat(input_video, input_audio, v=1, a=1)
-                            .output(app + "/ProcessedVideoWithAudio=).avi")
-                            .global_args('-loglevel', 'quiet')
-                            .run(capture_stdout=True, overwrite_output=True)
-                    )
-                except Exception as e:
-                    print("FFMPEG EXCEPTION: " + str(e))
+                self._try_combining_audio_and_video()
                 self.manager.transition = SlideTransition(direction="left")
-                self.manager.current = "finalim"
-        except Exception as _:
+                self.manager.current = "ProcessedScreen"
+        except Exception as e:
+            print("Error: " + str(e))
             self.manager.transition = SlideTransition(direction="down")
-            self.manager.current = "errorvid"
+            self.manager.current = "ErrorVideoSelectionScreen"
+
+    def _scan_and_write_video_for_emotion(self, capture_to_write, video, height, width):
+        while True:
+            k, frame_raw = video.read()
+            frame = cv2.resize(frame_raw, (int(width), int(height)))
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            face_recognition_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
+            detection = face_recognition_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+            for (x, y, z, w) in detection:
+                cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+                cut_gray = gray[y: y + z, x: x + w]
+                resized_cut_gray = cv2.resize(cut_gray, (48, 48))
+                gray_image_array = ima.img_to_array(resized_cut_gray)
+                gray_image_array_expanded = numpy.expand_dims(gray_image_array, axis=0)
+                gray_image_array_expanded /= 255
+                prediction = self.loaded_model.predict(gray_image_array_expanded)
+                final_prediction = numpy.argmax(prediction[0])
+                result = list_of_emotions[final_prediction]
+                if z >= 210 and w >= 210:
+                    cv2.putText(frame, result, (int(x + 5), int(y + 45)), cv2.FONT_HERSHEY_SIMPLEX, 1.4,
+                                (0, 0, 255), 2)
+                    continue
+                cv2.putText(frame, result, (int(x + 5), int(y + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.35,
+                            (0, 0, 255), 1)
+            capture_to_write.write(frame)
+
+    @staticmethod
+    def _scan_and_write_video_for_body_parts(capture_to_write, video, height, width):
+        while True:
+            k, frame_raw = video.read()
+            frame = cv2.resize(frame_raw, (int(width), int(height)))
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            body_classifier = get_body_classifier()
+            detection = body_classifier.detectMultiScale(gray_frame, scaleFactor=1.2, minNeighbors=5)
+            for (x, y, z, w) in detection:
+                cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
+            capture_to_write.write(frame)
+
+    # combination of video and audio might not work if installed ffmpeg version is invalid
+    @staticmethod
+    def _try_combining_audio_and_video():
+        try:
+            input_audio = ffmpeg.input(path_to_app + "/audio.mp3")
+            input_video = ffmpeg.input(path_to_app + "/ProcessedVideo.avi")
+            (
+                ffmpeg
+                    .concat(input_video, input_audio, v=1, a=1)
+                    .output(path_to_app + "/ProcessedVideoWithAudio.avi")
+                    .global_args('-loglevel', 'quiet')
+                    .run(capture_stdout=True, overwrite_output=True)
+            )
+        except Exception as ffmpeg_e:
+            print("FFMPEG Error: " + str(ffmpeg_e))
 
 
-class loading_scan_areas(Screen):
+class LoadingAndSavingScannedVideoCroppedScreen(Screen):
     def __init__(self, **kwargs):
-        super(loading_scan_areas, self).__init__(**kwargs)
+        super(LoadingAndSavingScannedVideoCroppedScreen, self).__init__(**kwargs)
         layout = FloatLayout(size=(350, 600))
-        wimg = AsyncImage(source=app_assets + 'assets/loading.gif',
+        loading_image = AsyncImage(source=path_to_app_assets + "/loading.gif",
                           size_hint=(0.15, 1 / 4),
                           keep_ratio=False,
                           allow_stretch=True,
-                          pos_hint={'x': 0.435, 'y': 0.4})
-        label1 = Label(text="PROCESSING", pos_hint={"x": 0.005, "y": 0.20}, color=(0.309, 0.933, 0.078, 4))
-        label2 = Label(text="30 seconds of video get processed approximately for 1 minute 15 seconds",
+                          pos_hint={"x": 0.435, "y": 0.4})
+        processing_label = Label(text="PROCESSING", pos_hint={"x": 0.005, "y": 0.20}, color=(0.309, 0.933, 0.078, 4))
+        processing_note_label = Label(text="30 seconds of video get processed approximately for 1 minute 15 seconds",
                        pos_hint={"x": 0.005, "y": -0.3}, color=(0.309, 0.933, 0.078, 4))
-        layout.add_widget(wimg)
-        layout.add_widget(label1)
-        layout.add_widget(label2)
+        layout.add_widget(loading_image)
+        layout.add_widget(processing_label)
+        layout.add_widget(processing_note_label)
         self.add_widget(layout)
-        self.model = ""
+        self.loaded_model = ""
 
     def on_enter(self, *args):
         try:
-            self.model = model_from_json(open(app_assets + "assets/neuralnet.json", "r").read())
-            self.model.load_weights(app_assets + "assets/weights.h5")
-            if str(selected_file_path[-3:]) != "peg" and str(selected_file_path[-3:]) != "jpg" and str(
-                    selected_file_path[-3:]) != "gif" and str(selected_file_path[-3:]) != "png" and str(
-                selected_file_path[-3:]) != "iff" and str(selected_file_path[-3:]) != "psd" and str(
-                selected_file_path[-3:]) != "pdf" and str(selected_file_path[-3:]) != "eps" and str(selected_file_path[-3:]) != ".ai" and str(
-                selected_file_path[-3:]) != "ndd" and str(selected_file_path[-3:]) != "raw":
-                retry = True
-                video_check = cv2.VideoCapture(selected_file_path)
-                k, frame_raw_check = video_check.read()
-                cv2.resize(frame_raw_check, (520, 400))
-                video_check.release()
+            self.loaded_model = model_from_json(open(path_to_app_assets + "/neuralnet.json", "r").read())
+            self.loaded_model.load_weights(path_to_app_assets + "/weights.h5")
+            selected_file_extension = str(selected_file_path[-3:])
+            if selected_file_extension.lower() not in invalid_file_extensions:
                 video = cv2.VideoCapture(selected_file_path)
-                capture = cv2.VideoWriter(app + "/ProcessedVideo=).avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
+
+                # check if selected video can be resized
+                k, frame_raw_check = video.read()
+                cv2.resize(frame_raw_check, (520, 400))
+                video.release()
+
+                video = cv2.VideoCapture(selected_file_path)
+                capture_to_write = cv2.VideoWriter(path_to_app + "/ProcessedVideo.avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
                                           (520, 400))
                 try:
-                    if switcher != "emotion":
-                        while retry:
-                            k, frame_raw = video.read()
-                            frame = cv2.resize(frame_raw, (520, 400))
-                            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                            global classifier
-                            if switcher == "face":
-                                classifier = cv2.CascadeClassifier(
-                                    app_assets + "assets/haarcascade_frontalface_default.xml")
-                            elif switcher == "body":
-                                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_fullbody.xml")
-                            elif switcher == "eye":
-                                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_eye.xml")
-                            elif switcher == "smile":
-                                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
-                            detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-                            for (x, y, z, w) in detection:
-                                final_frame = frame[y:y + z, x:x + w]
-                                final_cut_frame = cv2.resize(final_frame, (520, 400))
-                                capture.write(final_cut_frame)
-                    elif switcher == "emotion":
-                        while retry:
-                            k, frame_raw = video.read()
-                            frame = cv2.resize(frame_raw, (520, 400))
-                            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                            face_recogn = cv2.CascadeClassifier(
-                                app_assets + "assets/haarcascade_frontalface_default.xml")
-                            detection = face_recogn.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
-                            picker = 0
-                            for (x, y, z, w) in detection:
-                                picker += 1
-                                image_f = frame[y: y + z, x: x + w]
-                                image_final = cv2.resize(image_f, (520, 400))
-                                cut_gray = gray[y: y + z, x: x + w]
-                                resized_cut_gray = cv2.resize(cut_gray, (48, 48))
-                                array_gray_im = ima.img_to_array(resized_cut_gray)
-                                array_gray_im_expanded = numpy.expand_dims(array_gray_im, axis=0)
-                                array_gray_im_expanded /= 255
-                                prediction = self.model.predict(array_gray_im_expanded)
-                                final_prediction = numpy.argmax(prediction[0])
-                                list_of_emotions = ['angry', 'disgusted', 'fearful', 'happy', 'sad', 'surprised',
-                                                    'neutral']
-                                result = list_of_emotions[final_prediction]
-                                cv2.putText(image_final, result, (10, 45),
-                                            cv2.FONT_HERSHEY_SIMPLEX,
-                                            1.4,
-                                            (0, 0, 255), 2)
-                                capture.write(image_final)
-                except Exception as _:
+                    if area_for_scan != "emotion":
+                        self._scan_and_write_result_for_body_parts(capture_to_write, video)
+                    self._scan_and_write_result_for_emotion(capture_to_write, video)
+                except Exception as e:
+                    # at the end of the video exception will be thrown so it is only a warning
+                    print("Warning: " + str(e))
                     video.release()
                     self.manager.transition = SlideTransition(direction="left")
-                    self.manager.current = "finalim"
-            else:
-                self.manager.transition = SlideTransition(direction="down")
-                self.manager.current = "errorvid"
-        except Exception as _:
+                    self.manager.current = "ProcessedScreen"
+                    return
+            print("Error: selected file's extension " + selected_file_extension + " is not valid")
             self.manager.transition = SlideTransition(direction="down")
-            self.manager.current = "errorvid"
+            self.manager.current = "ErrorVideoSelectionScreen"
+        except Exception as e:
+            print("Error: " + str(e))
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "ErrorVideoSelectionScreen"
+
+    def _scan_and_write_result_for_emotion(self, capture_to_write, video):
+        while True:
+            k, frame_raw = video.read()
+            frame = cv2.resize(frame_raw, (520, 400))
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            face_classifier = cv2.CascadeClassifier(
+                path_to_app_assets + "/haarcascade_frontalface_default.xml")
+            detection = face_classifier.detectMultiScale(gray_frame, scaleFactor=1.2, minNeighbors=5)
+
+            if detection == ():
+                capture_to_write.write(frame)
+                continue
+
+            for (x, y, z, w) in detection:
+                image_cropped = frame[y: y + z, x: x + w]
+                image_final = cv2.resize(image_cropped, (520, 400))
+                gray_image_cropped = gray_frame[y: y + z, x: x + w]
+                resized_gray_image_cropped = cv2.resize(gray_image_cropped, (48, 48))
+                gray_image_array = ima.img_to_array(resized_gray_image_cropped)
+                gray_image_array_expanded = numpy.expand_dims(gray_image_array, axis=0)
+                gray_image_array_expanded /= 255
+                prediction = self.loaded_model.predict(gray_image_array_expanded)
+                final_prediction = numpy.argmax(prediction[0])
+                result = list_of_emotions[final_prediction]
+                cv2.putText(image_final, result, (10, 45),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            1.4,
+                            (0, 0, 255), 2)
+                capture_to_write.write(image_final)
+
+    @staticmethod
+    def _scan_and_write_result_for_body_parts(capture_to_write, video):
+        while True:
+            k, frame_raw = video.read()
+            frame = cv2.resize(frame_raw, (520, 400))
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            body_classifier = get_body_classifier()
+            detection = body_classifier.detectMultiScale(gray_frame, scaleFactor=1.2, minNeighbors=5)
+            for (x, y, z, w) in detection:
+                final_frame = frame[y:y + z, x:x + w]
+                final_cut_frame = cv2.resize(final_frame, (520, 400))
+                capture_to_write.write(final_cut_frame)
 
 
-class loading_result_areas(Screen):
+class LoadingAndShowingResultVideoCroppedScreen(Screen):
     def __init__(self, **kwargs):
-        super(loading_result_areas, self).__init__(**kwargs)
+        super(LoadingAndShowingResultVideoCroppedScreen, self).__init__(**kwargs)
         layout = FloatLayout(size=(350, 600))
-        wimg = AsyncImage(source=app_assets + 'assets/loading.gif',
+        loading_image = AsyncImage(source=path_to_app_assets + "/loading.gif",
                           size_hint=(0.15, 1 / 4),
                           keep_ratio=False,
                           allow_stretch=True,
-                          pos_hint={'x': 0.435, 'y': 0.4})
-        label1 = Label(text="PROCESSING", pos_hint={"x": 0.005, "y": 0.20}, color=(0.309, 0.933, 0.078, 4))
-        label2 = Label(text="30 seconds of video get processed approximately for 1 minute 15 seconds",
+                          pos_hint={"x": 0.435, "y": 0.4})
+        processing_label = Label(text="PROCESSING", pos_hint={"x": 0.005, "y": 0.20}, color=(0.309, 0.933, 0.078, 4))
+        processing_note_label = Label(text="30 seconds of video get processed approximately for 1 minute 15 seconds",
                        pos_hint={"x": 0.005, "y": -0.3}, color=(0.309, 0.933, 0.078, 4))
-        layout.add_widget(wimg)
-        layout.add_widget(label1)
-        layout.add_widget(label2)
+        layout.add_widget(loading_image)
+        layout.add_widget(processing_label)
+        layout.add_widget(processing_note_label)
         self.add_widget(layout)
-        self.switcher = True
-        self.model = ""
+        self.show_final_result = True
+        self.loaded_model = ""
 
     def on_enter(self, *args):
         try:
-            self.model = model_from_json(open(app_assets + "assets/neuralnet.json", "r").read())
-            self.model.load_weights(app_assets + "assets/weights.h5")
-            if str(selected_file_path[-3:]) != "peg" and str(selected_file_path[-3:]) != "jpg" and str(selected_file_path[-3:]) != "gif" and str(
-                    selected_file_path[-3:]) != "png" and str(selected_file_path[-3:]) != "iff" and str(selected_file_path[-3:]) != "psd" and str(
-                selected_file_path[-3:]) != "pdf" and str(selected_file_path[-3:]) != "eps" and str(selected_file_path[-3:]) != ".ai" and str(
-                selected_file_path[-3:]) != "ndd" and str(selected_file_path[-3:]) != "raw":
-                retry = True
-                video_check = cv2.VideoCapture(selected_file_path)
-                k, frame_raw_check = video_check.read()
-                cv2.resize(frame_raw_check, (520, 400))
-                video_check.release()
+            self.loaded_model = model_from_json(open(path_to_app_assets + "/neuralnet.json", "r").read())
+            self.loaded_model.load_weights(path_to_app_assets + "/weights.h5")
+            selected_file_extension = str(selected_file_path[-3:])
+            if selected_file_extension.lower() not in invalid_file_extensions:
                 video = cv2.VideoCapture(selected_file_path)
-                capture = cv2.VideoWriter(app_assets + "assets/detected.avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
+
+                # check if selected video can be resized
+                k, frame_raw_check = video.read()
+                cv2.resize(frame_raw_check, (520, 400))
+                video.release()
+
+                video = cv2.VideoCapture(selected_file_path)
+                capture = cv2.VideoWriter(path_to_app_assets + "/detected.avi", cv2.VideoWriter_fourcc(*"XVID"), 30,
                                           (520, 400))
                 try:
-                    if switcher != "emotion":
-                        while retry:
-                            k, frame_raw = video.read()
-                            frame = cv2.resize(frame_raw, (520, 400))
-                            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                            global classifier
-                            if switcher == "face":
-                                classifier = cv2.CascadeClassifier(
-                                    app_assets + "assets/haarcascade_frontalface_default.xml")
-                            elif switcher == "body":
-                                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_fullbody.xml")
-                            elif switcher == "eye":
-                                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_eye.xml")
-                            elif switcher == "smile":
-                                classifier = cv2.CascadeClassifier(app_assets + "assets/haarcascade_smile.xml")
-                            detection = classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-                            for (x, y, z, w) in detection:
-                                final_frame = frame[y:y + z, x:x + w]
-                                final_cut_frame = cv2.resize(final_frame, (520, 400))
-                                cv2.putText(final_cut_frame, "PRESS SPACE ONCE OR TWICE TO CLOSE THE VIDEO", (10, 11),
-                                            cv2.FONT_HERSHEY_SIMPLEX,
-                                            0.30,
-                                            (20, 226, 20), 1)
-                                capture.write(final_cut_frame)
-                    elif switcher == "emotion":
-                        retry = True
-                        while retry:
-                            k, frame_raw = video.read()
-                            frame = cv2.resize(frame_raw, (520, 400))
-                            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                            face_recogn = cv2.CascadeClassifier(
-                                app_assets + "assets/haarcascade_frontalface_default.xml")
-                            detection = face_recogn.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
-                            for (x, y, z, w) in detection:
-                                image_f = frame[y: y + z, x: x + w]
-                                image_final = cv2.resize(image_f, (520, 400))
-                                cut_gray = gray[y: y + z, x: x + w]
-                                resized_cut_gray = cv2.resize(cut_gray, (48, 48))
-                                array_gray_im = ima.img_to_array(resized_cut_gray)
-                                array_gray_im_expanded = numpy.expand_dims(array_gray_im, axis=0)
-                                array_gray_im_expanded /= 255
-                                prediction = self.model.predict(array_gray_im_expanded)
-                                final_prediction = numpy.argmax(prediction[0])
-                                list_of_emotions = ['angry', 'disgusted', 'fearful', 'happy', 'sad', 'surprised',
-                                                    'neutral']
-                                result = list_of_emotions[final_prediction]
-                                cv2.putText(image_final, result, (10, 50),
-                                            cv2.FONT_HERSHEY_SIMPLEX,
-                                            1.4,
-                                            (0, 0, 255), 2)
-                                cv2.putText(image_final, "PRESS SPACE TWICE TO CLOSE THE VIDEO", (10, 11),
-                                            cv2.FONT_HERSHEY_SIMPLEX,
-                                            0.30,
-                                            (20, 226, 20), 1)
-                                capture.write(image_final)
-                                for event in pygame.event.get():
-                                    if event.type == pygame.KEYDOWN:
-                                        if event.key == pygame.K_SPACE:
-                                            retry = False
-                                            cv2.destroyWindow("PREVIEW")
-                except Exception as _:
+                    if area_for_scan != "emotion":
+                        self._scan_and_write_for_body_parts(capture, video)
+                    self._scan_and_write_for_emotion(capture, video)
+                except Exception as e:
+                    # at the end of the video exception will be thrown so it is only a warning
+                    print("Warning: " + str(e))
                     video.release()
                     self.manager.transition = SlideTransition(direction="left")
-                    self.manager.current = "pathvid"
-            else:
-                self.switcher = False
-                self.manager.transition = SlideTransition(direction="down")
-                self.manager.current = "errorvid"
-        except Exception as _:
-            self.switcher = False
+                    self.manager.current = "ChooseVideoScreen"
+                    return
+            print("Error: selected file's extension " + selected_file_extension + " is not valid")
+            self.show_final_result = False
             self.manager.transition = SlideTransition(direction="down")
-            self.manager.current = "errorvid"
+            self.manager.current = "ErrorVideoSelectionScreen"
+        except Exception as e:
+            print("Error: " + str(e))
+            self.show_final_result = False
+            self.manager.transition = SlideTransition(direction="down")
+            self.manager.current = "ErrorVideoSelectionScreen"
 
     def on_leave(self, *args):
-        if self.switcher:
+        if self.show_final_result:
             detected = ""
             try:
-                fin = True
-                detected = cv2.VideoCapture(app_assets + "assets/detected.avi")
-                while fin:
-                    kk, frame_fin = detected.read()
-                    cv2.imshow("PREVIEW", frame_fin)
+                retry = True
+                detected = cv2.VideoCapture(path_to_app_assets + "/detected.avi")
+                while retry:
+                    k, frame = detected.read()
+                    cv2.imshow("PREVIEW", frame)
                     cv2.namedWindow("PREVIEW")
                     time.sleep(0.1)
                     for event in pygame.event.get():
-                        if event.type == pygame.KEYDOWN:
-                            if event.key == pygame.K_SPACE:
-                                fin = False
-                                cv2.destroyAllWindows()
-            except Exception as _:
+                        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                            retry = False
+                            cv2.destroyAllWindows()
+                return
+            except Exception as e:
+                print("Error: " + str(e))
                 detected.release()
                 cv2.destroyAllWindows()
+                return
+        print("Final result not shown due to error")
+
+    def _scan_and_write_for_emotion(self, capture_to_write, video):
+        while True:
+            k, frame_raw = video.read()
+            frame = cv2.resize(frame_raw, (520, 400))
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            face_classifier = cv2.CascadeClassifier(
+                path_to_app_assets + "/haarcascade_frontalface_default.xml")
+            detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+            for (x, y, z, w) in detection:
+                image_cropped = frame[y: y + z, x: x + w]
+                image_result = cv2.resize(image_cropped, (520, 400))
+                cut_gray = gray[y: y + z, x: x + w]
+                resized_cut_gray = cv2.resize(cut_gray, (48, 48))
+                image_gray_array = ima.img_to_array(resized_cut_gray)
+                image_gray_array_expended = numpy.expand_dims(image_gray_array, axis=0)
+                image_gray_array_expended /= 255
+                prediction = self.loaded_model.predict(image_gray_array_expended)
+                final_prediction = numpy.argmax(prediction[0])
+                result = list_of_emotions[final_prediction]
+                cv2.putText(image_result, result, (10, 50),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            1.4,
+                            (0, 0, 255), 2)
+                cv2.putText(image_result, "PRESS SPACE TWICE TO CLOSE THE VIDEO", (10, 11),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.30,
+                            (20, 226, 20), 1)
+                capture_to_write.write(image_result)
+
+    @staticmethod
+    def _scan_and_write_for_body_parts(capture_to_write, video):
+        while True:
+            k, frame_raw = video.read()
+            frame = cv2.resize(frame_raw, (520, 400))
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            body_classifier = get_body_classifier()
+            detection = body_classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
+            for (x, y, z, w) in detection:
+                final_frame = frame[y:y + z, x:x + w]
+                final_cut_frame = cv2.resize(final_frame, (520, 400))
+                cv2.putText(final_cut_frame, "PRESS SPACE ONCE OR TWICE TO CLOSE THE VIDEO", (10, 11),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.30,
+                            (20, 226, 20), 1)
+                capture_to_write.write(final_cut_frame)
 
 
-class no_folder_error(Screen):
-    def __init__(self, **kwargs):
-        super(no_folder_error, self).__init__(**kwargs)
-        layout = FloatLayout(size=(350, 600))
-
-        label1 = Label(text='PLEASE PLACE "TO_PROCESS" AND "PROCESSED" IN THE SAME FOLDER WHERE "SquareFace" APP IS',
-                       pos_hint={"x": 0, "y": 0.065}, color=(0.309, 0.933, 0.078, 4), font_size="15sp")
-        layout.add_widget(label1)
-        self.add_widget(layout)
-        self.event = ""
-
-    def on_enter(self, *args):
-        self.event = Clock.schedule_interval(self.check, 0.5)
-
-    def check(self, *args):
-        try:
-            global app
-            global app_assets
-            if getattr(sys, 'frozen', False):
-                app = str(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(sys.executable))))) + "/"
-                app_assets = str(os.path.dirname(sys.executable)) + "/"
-            elif __file__:
-                app = str(os.path.dirname(__file__)) + "/"
-                app_assets = str(os.path.dirname(__file__)) + "/"
-            os.listdir(app + "TO_PROCESS")
-            os.listdir(app + "PROCESSED")
-            self.event.cancel()
-            self.manager.transition = SlideTransition(direction="up")
-            self.manager.current = screen_to
-        except Exception as _:
-            pass
-
-
-class error(Screen):
-    def __init__(self, **kwargs):
-        super(error, self).__init__(**kwargs)
-        layout = FloatLayout(size=(350, 600))
-
-        label1 = Label(text="ERROR: EITHER NAME/TYPE OF YOUR FOLDER/FILE IS WRONG OR FOLDER/FILE DOESN'T EXIST",
-                       pos_hint={"x": 0, "y": 0.09}, color=(0.309, 0.933, 0.078, 4), font_size="13sp")
-        but1 = Button(text="OK", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.30, "y": 0.4},
-                      color=(0.141, 0.054, 0.078, 4), size_hint=(0.4, 0.10))
-        but1.bind(on_press=self.switch)
-
-        layout.add_widget(label1)
-        layout.add_widget(but1)
-        self.add_widget(layout)
-
-    def switch(self, *args):
-        self.manager.transition = SlideTransition(direction="up")
-        self.manager.current = "pathim"
-
-
-Manager = ScreenManager()
-Manager.add_widget(welcome(name="welcome"))
-Manager.add_widget(choose(name="choose"))
-Manager.add_widget(pathim(name="pathim"))
-Manager.add_widget(finalim(name="finalim"))
-Manager.add_widget(pathimcam(name="pathimcam"))
-Manager.add_widget(pathvid(name="pathvid"))
-Manager.add_widget(pathvidcam(name="pathvidcam"))
-Manager.add_widget(nodetections(name="nodetections"))
-Manager.add_widget(nodetectionscam(name="nodetectionscam"))
-Manager.add_widget(loading_scan(name="loading_scan"))
-Manager.add_widget(loading_scan_areas(name="loading_scan_areas"))
-Manager.add_widget(loading_result_areas(name="loading_result_areas"))
-Manager.add_widget(errorimcam(name="errorimcam"))
-Manager.add_widget(errorvid(name="errorvid"))
-Manager.add_widget(errorvidcam(name="errorvidcam"))
-Manager.add_widget(error(name="error"))
-Manager.add_widget(no_folder_error(name="no_folder_error"))
-
-
-class SquareFace(App):
-    def build(self):
-        return Manager
+def set_file_paths():
+    global path_to_app
+    global path_to_app_assets
+    if getattr(sys, 'frozen', False):
+        path_to_app = str(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(sys.executable)))))
+        path_to_app_assets = str(os.path.dirname(sys.executable)) + "/assets"
+    elif __file__:
+        path_to_app = str(os.path.dirname(__file__))
+        path_to_app_assets = str(os.path.dirname(__file__)) + "/assets"
 
 
 def set_config():
-    global app
-    global app_assets
-    if getattr(sys, 'frozen', False):
-        app = str(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(sys.executable))))) + "/"
-        app_assets = str(os.path.dirname(sys.executable)) + "/"
-    elif __file__:
-        app = str(os.path.dirname(__file__)) + "/"
-        app_assets = str(os.path.dirname(__file__)) + "/"
     pygame.init()
-    Config.set("kivy", "window_icon", app_assets + "assets/logo.png")
+
+    Config.set("kivy", "window_icon", path_to_app_assets + "/logo.png")
     Config.set('graphics', 'resizable', False)
     Config.set("graphics", "width", "850")
     Config.set("graphics", "height", "630")
     Config.write()
 
 
+def init_screen_manager():
+    manager = ScreenManager()
+    manager.add_widget(WelcomeScreen(name="WelcomeScreen"))
+    manager.add_widget(ChooseInputScreen(name="ChooseInputScreen"))
+    manager.add_widget(ChooseImageScreen(name="ChooseImageScreen"))
+    manager.add_widget(ChooseImageCamInputScreen(name="ChooseImageCamInputScreen"))
+    manager.add_widget(ChooseVideoScreen(name="ChooseVideoScreen"))
+    manager.add_widget(ChooseVideoCamInputScreen(name="ChooseVideoCamInputScreen"))
+    manager.add_widget(NoDetectionsIdentifiedOnImageScreen(name="NoDetectionsIdentifiedOnImageScreen"))
+    manager.add_widget(NoDetectionsIdentifiedOnImageCamScreen(name="NoDetectionsIdentifiedOnImageCamScreen"))
+    manager.add_widget(LoadingAndSavingScannedVideoScreen(name="LoadingAndSavingScannedVideoScreen"))
+    manager.add_widget(LoadingAndSavingScannedVideoCroppedScreen(name="LoadingAndSavingScannedVideoCroppedScreen"))
+    manager.add_widget(LoadingAndShowingResultVideoCroppedScreen(name="LoadingAndShowingResultVideoCroppedScreen"))
+    manager.add_widget(ProcessedScreen(name="ProcessedScreen"))
+    manager.add_widget(ErrorImageCamScreen(name="ErrorImageCamScreen"))
+    manager.add_widget(ErrorVideoSelectionScreen(name="ErrorVideoSelectionScreen"))
+    manager.add_widget(ErrorVideoCamScreen(name="ErrorVideoCamScreen"))
+    manager.add_widget(ErrorImageSelectionScreen(name="ErrorImageSelectionScreen"))
+    return manager
+
+
+class SquareFace(App):
+    def __init__(self):
+        super().__init__()
+        set_file_paths()
+        set_config()
+
+    def build(self):
+        return init_screen_manager()
+
+
 if __name__ == "__main__":
-    set_config()
     SquareFace().run()
