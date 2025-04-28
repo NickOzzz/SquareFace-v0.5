@@ -326,7 +326,8 @@ class ChooseImageScreen(Screen):
                 self._scan_and_show_body_part_result(image, gray_image)
                 return
             self._scan_and_show_emotion_result(image, gray_image)
-        except Exception as _:
+        except Exception as e:
+            print("Error: " + str(e))
             self.manager.transition = SlideTransition(direction="down")
             self.manager.current = "ErrorImageSelectionScreen"
 
@@ -1041,7 +1042,7 @@ class ChooseVideoScreen(Screen):
 
                 # check if selected video can be resized
                 video_check = cv2.VideoCapture(app)
-                k, frame_raw_check = video_check.read()
+                _, frame_raw_check = video_check.read()
                 cv2.resize(frame_raw_check, (520, 400))
                 video_check.release()
 
@@ -1078,7 +1079,7 @@ class ChooseVideoScreen(Screen):
     def _scan_and_show_emotion_result(self, video, width, height):
         retry = True
         while retry:
-            k, frame_raw = video.read()
+            _, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (int(width), int(height)))
             gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
@@ -1120,7 +1121,7 @@ class ChooseVideoScreen(Screen):
         while retry:
             body_classifier = get_body_classifier()
 
-            k, frame_raw = video.read()
+            _, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (int(width), int(height)))
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             detection = body_classifier.detectMultiScale(gray, scaleFactor=model_scale_factor, minNeighbors=5)
@@ -1253,7 +1254,7 @@ class ChooseVideoCamInputScreen(Screen):
     def _scan_and_save_body_part_result(self, capture_to_write, video, width, height):
         retry = True
         while retry:
-            k, frame_raw = video.read()
+            _, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (int(width), int(height)))
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             body_classifier = get_body_classifier()
@@ -1279,7 +1280,7 @@ class ChooseVideoCamInputScreen(Screen):
     def _scan_and_save_emotion_result(self, capture_to_write, video, width, height):
         retry = True
         while retry:
-            k, frame_raw = video.read()
+            _, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (int(width), int(height)))
             gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
@@ -1319,7 +1320,7 @@ class ChooseVideoCamInputScreen(Screen):
     def _scan_and_save_body_part_cropped_result(self, capture_to_write, video):
         retry = True
         while retry:
-            k, frame_raw = video.read()
+            _, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (520, 400))
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             body_classifier = get_body_classifier()
@@ -1360,7 +1361,7 @@ class ChooseVideoCamInputScreen(Screen):
     def _scan_and_save_emotion_cropped_result(self, capture_to_write, video):
         retry = True
         while retry:
-            k, frame_raw = video.read()
+            _, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (520, 400))
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_classifier = cv2.CascadeClassifier(
@@ -1414,7 +1415,7 @@ class ChooseVideoCamInputScreen(Screen):
     def _scan_and_show_emotion_result(self, video, width, height):
         retry = True
         while retry:
-            k, frame_raw = video.read()
+            _, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (int(width), int(height)))
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_classifier = cv2.CascadeClassifier(
@@ -1469,7 +1470,7 @@ class ChooseVideoCamInputScreen(Screen):
     def _scan_and_show_emotion_cropped_result(self, video):
         retry = True
         while retry:
-            k, frame_raw = video.read()
+            _, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (520, 400))
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
@@ -1519,7 +1520,7 @@ class ChooseVideoCamInputScreen(Screen):
     def _scan_and_show_body_part_result(video, width, height):
         retry = True
         while retry:
-            k, frame_raw = video.read()
+            _, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (int(width), int(height)))
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             body_classifier = get_body_classifier()
@@ -1550,7 +1551,7 @@ class ChooseVideoCamInputScreen(Screen):
     def _scan_and_show_body_part_cropped_result(video):
         retry = True
         while retry:
-            k, frame_raw = video.read()
+            _, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (520, 400))
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             body_classifier = get_body_classifier()
@@ -1779,7 +1780,7 @@ class LoadingAndSavingScannedVideoScreen(Screen):
 
     def _scan_and_write_video_for_emotion(self, capture_to_write, video, height, width):
         while True:
-            k, frame_raw = video.read()
+            _, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (int(width), int(height)))
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_recognition_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
@@ -1805,7 +1806,7 @@ class LoadingAndSavingScannedVideoScreen(Screen):
     @staticmethod
     def _scan_and_write_video_for_body_parts(capture_to_write, video, height, width):
         while True:
-            k, frame_raw = video.read()
+            _, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (int(width), int(height)))
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             body_classifier = get_body_classifier()
@@ -1858,7 +1859,7 @@ class LoadingAndSavingScannedVideoCroppedScreen(Screen):
                 video = cv2.VideoCapture(selected_file_path)
 
                 # check if selected video can be resized
-                k, frame_raw_check = video.read()
+                _, frame_raw_check = video.read()
                 cv2.resize(frame_raw_check, (520, 400))
                 video.release()
 
@@ -1886,7 +1887,7 @@ class LoadingAndSavingScannedVideoCroppedScreen(Screen):
 
     def _scan_and_write_result_for_emotion(self, capture_to_write, video):
         while True:
-            k, frame_raw = video.read()
+            _, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (520, 400))
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_classifier = cv2.CascadeClassifier(
@@ -1917,7 +1918,7 @@ class LoadingAndSavingScannedVideoCroppedScreen(Screen):
     @staticmethod
     def _scan_and_write_result_for_body_parts(capture_to_write, video):
         while True:
-            k, frame_raw = video.read()
+            _, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (520, 400))
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             body_classifier = get_body_classifier()
@@ -1956,7 +1957,7 @@ class LoadingAndShowingResultVideoCroppedScreen(Screen):
                 video = cv2.VideoCapture(selected_file_path)
 
                 # check if selected video can be resized
-                k, frame_raw_check = video.read()
+                _, frame_raw_check = video.read()
                 cv2.resize(frame_raw_check, (520, 400))
                 video.release()
 
@@ -1991,7 +1992,7 @@ class LoadingAndShowingResultVideoCroppedScreen(Screen):
                 retry = True
                 detected = cv2.VideoCapture(path_to_app_assets + "/detected.avi")
                 while retry:
-                    k, frame = detected.read()
+                    _, frame = detected.read()
                     cv2.imshow("PREVIEW", frame)
                     cv2.namedWindow("PREVIEW")
                     time.sleep(0.1)
@@ -2009,7 +2010,7 @@ class LoadingAndShowingResultVideoCroppedScreen(Screen):
 
     def _scan_and_write_for_emotion(self, capture_to_write, video):
         while True:
-            k, frame_raw = video.read()
+            _, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (520, 400))
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_classifier = cv2.CascadeClassifier(
@@ -2039,7 +2040,7 @@ class LoadingAndShowingResultVideoCroppedScreen(Screen):
     @staticmethod
     def _scan_and_write_for_body_parts(capture_to_write, video):
         while True:
-            k, frame_raw = video.read()
+            _, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (520, 400))
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             body_classifier = get_body_classifier()
