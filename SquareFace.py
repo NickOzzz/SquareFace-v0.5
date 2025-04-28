@@ -49,9 +49,10 @@ class WelcomeScreen(Screen):
         layout = FloatLayout(size=(350, 600))
 
         welcome_label = Label(text="WELCOME TO SQUARE FACE", pos_hint={"x": -0.003, "y": 0.20}, color=(0.309, 0.933, 0.078, 4))
-        choose_label = Label(text="CHOOSE WHAT YOU WOULD LIKE TO DETECT OR RECOGNIZE "
-                                  "\n\n       NOTE: body recognition requires more processing power", pos_hint={"x": -0.004, "y": 0.123},
+        choose_label = Label(text="CHOOSE WHAT YOU WOULD LIKE TO DETECT", pos_hint={"x": -0.004, "y": 0.123},
                        color=(0.309, 0.933, 0.078, 4))
+        note_label = Label(text="NOTE: body recognition requires more processing power", pos_hint={"x": -0.004, "y": 0.07},
+                             color=(0.309, 0.933, 0.078, 4))
         choose_face_button = Button(text="FACE", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.04, "y": 0.38},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.20, 0.15))
         choose_face_button.bind(on_press=self.switch_to_face_screen)
@@ -80,6 +81,7 @@ class WelcomeScreen(Screen):
 
         layout.add_widget(welcome_label)
         layout.add_widget(choose_label)
+        layout.add_widget(note_label)
         layout.add_widget(camera_port_label)
         layout.add_widget(choose_face_button)
         layout.add_widget(choose_body_button)
@@ -149,8 +151,9 @@ class ChooseInputScreen(Screen):
     def __init__(self, **kwargs):
         super(ChooseInputScreen, self).__init__(**kwargs)
         layout = FloatLayout(size=(350, 600))
-
         choose_type_label = Label(text="CHOOSE TYPE OF FILE", pos_hint={"x": -0.003, "y": 0.27}, color=(0.309, 0.933, 0.078, 4))
+        note_label = Label(text="NOTE: make sure it is not too bright and not too dark for the recognition to work presicely",
+                           pos_hint={"x": -0.003, "y": 0.2}, color=(0.309, 0.933, 0.078, 4))
         choose_video_button = Button(text="VIDEO", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.20, "y": 0.15},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.28, 0.20))
         choose_video_button.bind(on_press=self.switch_to_video_selection_screen)
@@ -170,6 +173,7 @@ class ChooseInputScreen(Screen):
         go_back_button.bind(on_press=self.switch_to_welcome_screen)
 
         layout.add_widget(choose_type_label)
+        layout.add_widget(note_label)
         layout.add_widget(choose_video_button)
         layout.add_widget(choose_video_from_camera_button)
         layout.add_widget(choose_image_button)
