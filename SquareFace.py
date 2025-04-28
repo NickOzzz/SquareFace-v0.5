@@ -24,6 +24,7 @@ area_for_scan = ""
 selected_file_path = ""
 path_to_app = ""
 path_to_app_assets = "/assets"
+model_scale_factor = 1.2
 cam_port = 0
 current_screen = "ChooseInputScreen"
 list_of_emotions = ["angry", "disgusted", "fearful", "happy", "sad", "surprised", "neutral"]
@@ -48,7 +49,8 @@ class WelcomeScreen(Screen):
         layout = FloatLayout(size=(350, 600))
 
         welcome_label = Label(text="WELCOME TO SQUARE FACE", pos_hint={"x": -0.003, "y": 0.20}, color=(0.309, 0.933, 0.078, 4))
-        choose_label = Label(text="CHOOSE WHAT YOU WOULD LIKE TO DETECT OR RECOGNIZE", pos_hint={"x": -0.004, "y": 0.123},
+        choose_label = Label(text="CHOOSE WHAT YOU WOULD LIKE TO DETECT OR RECOGNIZE "
+                                  "\n\n       NOTE: body recognition requires more processing power", pos_hint={"x": -0.004, "y": 0.123},
                        color=(0.309, 0.933, 0.078, 4))
         choose_face_button = Button(text="FACE", background_color=(0.309, 0.933, 0.078, 4), pos_hint={"x": 0.04, "y": 0.38},
                       color=(0.141, 0.054, 0.078, 4), size_hint=(0.20, 0.15))
@@ -89,35 +91,46 @@ class WelcomeScreen(Screen):
         self.add_widget(layout)
 
     def switch_to_face_screen(self, *args):
+        global model_scale_factor
         global area_for_scan
+        model_scale_factor = 1.2
         area_for_scan = "face"
         self._apply_cam_port()
         self.manager.transition = SlideTransition(direction="left")
         self.manager.current = "ChooseInputScreen"
 
     def switch_to_body_screen(self, *args):
+        global model_scale_factor
         global area_for_scan
+        # lower scale factor for recognition to be more precise
+        model_scale_factor = 1.035
         area_for_scan = "body"
         self._apply_cam_port()
         self.manager.transition = SlideTransition(direction="left")
         self.manager.current = "ChooseInputScreen"
 
     def switch_to_eye_screen(self, *args):
+        global model_scale_factor
         global area_for_scan
+        model_scale_factor = 1.2
         area_for_scan = "eye"
         self._apply_cam_port()
         self.manager.transition = SlideTransition(direction="left")
         self.manager.current = "ChooseInputScreen"
 
     def switch_to_smile_screen(self, *args):
+        global model_scale_factor
         global area_for_scan
+        model_scale_factor = 1.2
         area_for_scan = "smile"
         self._apply_cam_port()
         self.manager.transition = SlideTransition(direction="left")
         self.manager.current = "ChooseInputScreen"
 
     def switch_to_emotion_screen(self, *args):
+        global model_scale_factor
         global area_for_scan
+        model_scale_factor = 1.2
         area_for_scan = "emotion"
         self._apply_cam_port()
         self.manager.transition = SlideTransition(direction="left")
@@ -333,7 +346,7 @@ class ChooseImageScreen(Screen):
 
     def _scan_and_save_body_part(self, path_to_image, image, gray_image):
         body_classifier = get_body_classifier()
-        detected_areas = body_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+        detected_areas = body_classifier.detectMultiScale(gray_image, scaleFactor=model_scale_factor, minNeighbors=5)
         if detected_areas == ():
             self.manager.transition = SlideTransition(direction="down")
             self.manager.current = "NoDetectionsIdentifiedOnImageScreen"
@@ -346,7 +359,7 @@ class ChooseImageScreen(Screen):
 
     def _scan_and_save_emotion(self, path_to_image, image, gray_image):
         face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
-        detected_areas = face_classifier.detectMultiScale(image, scaleFactor=1.2, minNeighbors=5)
+        detected_areas = face_classifier.detectMultiScale(image, scaleFactor=model_scale_factor, minNeighbors=5)
         for (x, y, z, w) in detected_areas:
             cv2.rectangle(image, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
             cut_gray_image = gray_image[y: y + z, x: x + w]
@@ -370,7 +383,7 @@ class ChooseImageScreen(Screen):
 
     def _scan_and_save_body_part_cropped(self, image, gray_image, path_to_image):
         body_classifier = get_body_classifier()
-        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=model_scale_factor, minNeighbors=5)
         picker = 0
         if detection == ():
             self.manager.transition = SlideTransition(direction="down")
@@ -386,7 +399,7 @@ class ChooseImageScreen(Screen):
 
     def _scan_and_save_emotion_cropped(self, image, gray_image, path_to_image):
         face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
-        detection = face_classifier.detectMultiScale(image, scaleFactor=1.2, minNeighbors=5)
+        detection = face_classifier.detectMultiScale(image, scaleFactor=model_scale_factor, minNeighbors=5)
 
         if detection == ():
             self.manager.transition = SlideTransition(direction="down")
@@ -417,7 +430,7 @@ class ChooseImageScreen(Screen):
 
     def _scan_and_show_body_part_result(self, image, gray_image):
         body_classifier = get_body_classifier()
-        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=model_scale_factor, minNeighbors=5)
         detection_counter = 0
 
         if detection == ():
@@ -446,8 +459,8 @@ class ChooseImageScreen(Screen):
                     cv2.destroyAllWindows()
 
     def _scan_and_show_emotion_result(self, image, gray_image):
-        face_recogn = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
-        detection = face_recogn.detectMultiScale(image, scaleFactor=1.2, minNeighbors=5)
+        face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
+        detection = face_classifier.detectMultiScale(image, scaleFactor=model_scale_factor, minNeighbors=5)
         detection_counter = 0
 
         if detection == ():
@@ -490,7 +503,7 @@ class ChooseImageScreen(Screen):
 
     def _scan_and_show_body_part_cropped_result(self, image, gray_image):
         body_classifier = get_body_classifier()
-        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=model_scale_factor, minNeighbors=5)
 
         if detection == ():
             self.manager.transition = SlideTransition(direction="down")
@@ -523,7 +536,7 @@ class ChooseImageScreen(Screen):
 
     def _scan_and_show_emotion_cropped_result(self, image, gray_image):
         face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
-        detection = face_classifier.detectMultiScale(image, scaleFactor=1.2, minNeighbors=5)
+        detection = face_classifier.detectMultiScale(image, scaleFactor=model_scale_factor, minNeighbors=5)
 
         if detection == ():
             self.manager.transition = SlideTransition(direction="down")
@@ -666,7 +679,7 @@ class ChooseImageCamInputScreen(Screen):
 
     def _scan_and_save_body_part_result(self, frame, image, gray_image):
         body_classifier = get_body_classifier()
-        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=model_scale_factor, minNeighbors=5)
 
         if detection == ():
             self.manager.transition = SlideTransition(direction="down")
@@ -682,7 +695,7 @@ class ChooseImageCamInputScreen(Screen):
 
     def _scan_and_save_emotion_result(self, frame, image, gray_image):
         face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
-        detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+        detection = face_classifier.detectMultiScale(frame, scaleFactor=model_scale_factor, minNeighbors=5)
 
         if detection == ():
             self.manager.transition = SlideTransition(direction="down")
@@ -712,7 +725,7 @@ class ChooseImageCamInputScreen(Screen):
 
     def _scan_and_save_body_part_cropped_result(self, frame, image, gray_image):
         body_classifier = get_body_classifier()
-        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=model_scale_factor, minNeighbors=5)
         image_count = 0
 
         if detection == ():
@@ -731,7 +744,7 @@ class ChooseImageCamInputScreen(Screen):
 
     def _scan_and_save_emotion_cropped_result(self, frame, image, gray_image):
         face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
-        detection = face_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+        detection = face_classifier.detectMultiScale(gray_image, scaleFactor=model_scale_factor, minNeighbors=5)
 
         if detection == ():
             self.manager.transition = SlideTransition(direction="down")
@@ -763,7 +776,7 @@ class ChooseImageCamInputScreen(Screen):
 
     def _scan_and_show_body_part_result(self, frame, image, gray_image):
         body_classifier = get_body_classifier()
-        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=model_scale_factor, minNeighbors=5)
         image_counter = 0
 
         if detection == ():
@@ -792,7 +805,7 @@ class ChooseImageCamInputScreen(Screen):
 
     def _scan_and_show_emotion_result(self, frame, image, gray_image):
         face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
-        detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+        detection = face_classifier.detectMultiScale(frame, scaleFactor=model_scale_factor, minNeighbors=5)
         image_counter = 0
 
         if detection == ():
@@ -836,7 +849,7 @@ class ChooseImageCamInputScreen(Screen):
 
     def _scan_and_show_body_part_cropped_result(self, frame, gray_image):
         body_classifier = get_body_classifier()
-        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=1.2, minNeighbors=5)
+        detection = body_classifier.detectMultiScale(gray_image, scaleFactor=model_scale_factor, minNeighbors=5)
 
         if detection == ():
             self.manager.transition = SlideTransition(direction="down")
@@ -869,7 +882,7 @@ class ChooseImageCamInputScreen(Screen):
 
     def _scan_and_show_emotion_cropped_result(self, frame, gray_image):
         face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
-        detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+        detection = face_classifier.detectMultiScale(frame, scaleFactor=model_scale_factor, minNeighbors=5)
 
         if detection == ():
             self.manager.transition = SlideTransition(direction="down")
@@ -919,7 +932,6 @@ class ChooseImageCamInputScreen(Screen):
         for _ in range(5):
             k, frame = image.read()
         return frame
-
 
 
 class ChooseVideoScreen(Screen):
@@ -1070,7 +1082,7 @@ class ChooseVideoScreen(Screen):
             frame = cv2.resize(frame_raw, (int(width), int(height)))
             gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
-            detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+            detection = face_classifier.detectMultiScale(frame, scaleFactor=model_scale_factor, minNeighbors=5)
             cv2.putText(frame, "PRESS SPACE TWICE TO CLOSE THE VIDEO", (10, 40),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.35,
@@ -1111,7 +1123,7 @@ class ChooseVideoScreen(Screen):
             k, frame_raw = video.read()
             frame = cv2.resize(frame_raw, (int(width), int(height)))
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            detection = body_classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
+            detection = body_classifier.detectMultiScale(gray, scaleFactor=model_scale_factor, minNeighbors=5)
             cv2.putText(frame, "PRESS SPACE ONCE OR TWICE TO CLOSE THE VIDEO", (10, 15),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.35,
@@ -1245,7 +1257,7 @@ class ChooseVideoCamInputScreen(Screen):
             frame = cv2.resize(frame_raw, (int(width), int(height)))
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             body_classifier = get_body_classifier()
-            detection = body_classifier.detectMultiScale(gray_frame, scaleFactor=1.2, minNeighbors=5)
+            detection = body_classifier.detectMultiScale(gray_frame, scaleFactor=model_scale_factor, minNeighbors=5)
             for (x, y, z, w) in detection:
                 cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
             capture_to_write.write(frame)
@@ -1271,7 +1283,7 @@ class ChooseVideoCamInputScreen(Screen):
             frame = cv2.resize(frame_raw, (int(width), int(height)))
             gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
-            detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+            detection = face_classifier.detectMultiScale(frame, scaleFactor=model_scale_factor, minNeighbors=5)
             for (x, y, z, w) in detection:
                 cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
                 gray_image_cropped = gray_image[y: y + z, x: x + w]
@@ -1311,7 +1323,7 @@ class ChooseVideoCamInputScreen(Screen):
             frame = cv2.resize(frame_raw, (520, 400))
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             body_classifier = get_body_classifier()
-            detection = body_classifier.detectMultiScale(gray_frame, scaleFactor=1.2, minNeighbors=5)
+            detection = body_classifier.detectMultiScale(gray_frame, scaleFactor=model_scale_factor, minNeighbors=5)
 
             if detection == ():
                 capture_to_write.write(frame)
@@ -1353,7 +1365,7 @@ class ChooseVideoCamInputScreen(Screen):
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_classifier = cv2.CascadeClassifier(
                 path_to_app_assets + "/haarcascade_frontalface_default.xml")
-            detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+            detection = face_classifier.detectMultiScale(frame, scaleFactor=model_scale_factor, minNeighbors=5)
 
             if detection == ():
                 capture_to_write.write(frame)
@@ -1407,7 +1419,7 @@ class ChooseVideoCamInputScreen(Screen):
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_classifier = cv2.CascadeClassifier(
                 path_to_app_assets + "/haarcascade_frontalface_default.xml")
-            detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+            detection = face_classifier.detectMultiScale(frame, scaleFactor=model_scale_factor, minNeighbors=5)
 
             if detection == ():
                 cv2.putText(frame, "NO DETECTIONS", (200, 240),
@@ -1461,7 +1473,7 @@ class ChooseVideoCamInputScreen(Screen):
             frame = cv2.resize(frame_raw, (520, 400))
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
-            detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+            detection = face_classifier.detectMultiScale(frame, scaleFactor=model_scale_factor, minNeighbors=5)
 
             if detection == ():
                 cv2.putText(frame, "PRESS SPACE ONCE OR TWICE TO STOP SHOWING VIDEO", (10, 15),
@@ -1511,7 +1523,7 @@ class ChooseVideoCamInputScreen(Screen):
             frame = cv2.resize(frame_raw, (int(width), int(height)))
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             body_classifier = get_body_classifier()
-            detection = body_classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
+            detection = body_classifier.detectMultiScale(gray, scaleFactor=model_scale_factor, minNeighbors=5)
             if detection == ():
                 cv2.putText(frame, "NO DETECTIONS", (200, 240),
                             cv2.FONT_HERSHEY_SIMPLEX,
@@ -1542,7 +1554,7 @@ class ChooseVideoCamInputScreen(Screen):
             frame = cv2.resize(frame_raw, (520, 400))
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             body_classifier = get_body_classifier()
-            detection = body_classifier.detectMultiScale(gray_frame, scaleFactor=1.2, minNeighbors=5)
+            detection = body_classifier.detectMultiScale(gray_frame, scaleFactor=model_scale_factor, minNeighbors=5)
 
             if detection == ():
                 cv2.putText(frame, "PRESS SPACE ONCE OR TWICE TO STOP SHOWING VIDEO", (10, 15),
@@ -1771,7 +1783,7 @@ class LoadingAndSavingScannedVideoScreen(Screen):
             frame = cv2.resize(frame_raw, (int(width), int(height)))
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_recognition_classifier = cv2.CascadeClassifier(path_to_app_assets + "/haarcascade_frontalface_default.xml")
-            detection = face_recognition_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+            detection = face_recognition_classifier.detectMultiScale(frame, scaleFactor=model_scale_factor, minNeighbors=5)
             for (x, y, z, w) in detection:
                 cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
                 cut_gray = gray[y: y + z, x: x + w]
@@ -1797,7 +1809,7 @@ class LoadingAndSavingScannedVideoScreen(Screen):
             frame = cv2.resize(frame_raw, (int(width), int(height)))
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             body_classifier = get_body_classifier()
-            detection = body_classifier.detectMultiScale(gray_frame, scaleFactor=1.2, minNeighbors=5)
+            detection = body_classifier.detectMultiScale(gray_frame, scaleFactor=model_scale_factor, minNeighbors=5)
             for (x, y, z, w) in detection:
                 cv2.rectangle(frame, (x, y), (x + z, y + w), (20, 226, 20), thickness=7)
             capture_to_write.write(frame)
@@ -1879,7 +1891,7 @@ class LoadingAndSavingScannedVideoCroppedScreen(Screen):
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_classifier = cv2.CascadeClassifier(
                 path_to_app_assets + "/haarcascade_frontalface_default.xml")
-            detection = face_classifier.detectMultiScale(gray_frame, scaleFactor=1.2, minNeighbors=5)
+            detection = face_classifier.detectMultiScale(gray_frame, scaleFactor=model_scale_factor, minNeighbors=5)
 
             if detection == ():
                 capture_to_write.write(frame)
@@ -1909,7 +1921,7 @@ class LoadingAndSavingScannedVideoCroppedScreen(Screen):
             frame = cv2.resize(frame_raw, (520, 400))
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             body_classifier = get_body_classifier()
-            detection = body_classifier.detectMultiScale(gray_frame, scaleFactor=1.2, minNeighbors=5)
+            detection = body_classifier.detectMultiScale(gray_frame, scaleFactor=model_scale_factor, minNeighbors=5)
             for (x, y, z, w) in detection:
                 final_frame = frame[y:y + z, x:x + w]
                 final_cut_frame = cv2.resize(final_frame, (520, 400))
@@ -2002,7 +2014,7 @@ class LoadingAndShowingResultVideoCroppedScreen(Screen):
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_classifier = cv2.CascadeClassifier(
                 path_to_app_assets + "/haarcascade_frontalface_default.xml")
-            detection = face_classifier.detectMultiScale(frame, scaleFactor=1.2, minNeighbors=5)
+            detection = face_classifier.detectMultiScale(frame, scaleFactor=model_scale_factor, minNeighbors=5)
             for (x, y, z, w) in detection:
                 image_cropped = frame[y: y + z, x: x + w]
                 image_result = cv2.resize(image_cropped, (520, 400))
@@ -2031,7 +2043,7 @@ class LoadingAndShowingResultVideoCroppedScreen(Screen):
             frame = cv2.resize(frame_raw, (520, 400))
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             body_classifier = get_body_classifier()
-            detection = body_classifier.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
+            detection = body_classifier.detectMultiScale(gray, scaleFactor=model_scale_factor, minNeighbors=5)
             for (x, y, z, w) in detection:
                 final_frame = frame[y:y + z, x:x + w]
                 final_cut_frame = cv2.resize(final_frame, (520, 400))
