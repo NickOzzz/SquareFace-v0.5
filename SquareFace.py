@@ -613,8 +613,10 @@ class ChooseImageCamInputScreen(Screen):
     def scan_and_save_result(self, *args):
         try:
             image = cv2.VideoCapture(cam_port)
-            k, frame = image.read()
+            frame = self._get_capture_frame(image)
+
             gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
             if area_for_scan != "emotion":
                 self._scan_and_save_body_part_result(frame, image, gray_image)
                 return
@@ -627,8 +629,10 @@ class ChooseImageCamInputScreen(Screen):
     def scan_and_save_cropped_result(self, *args):
         try:
             image = cv2.VideoCapture(cam_port)
-            k, frame = image.read()
+            frame = self._get_capture_frame(image)
+
             gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
             if area_for_scan != "emotion":
                 self._scan_and_save_body_part_cropped_result(frame, image, gray_image)
                 return
@@ -640,8 +644,10 @@ class ChooseImageCamInputScreen(Screen):
 
     def scan_and_show_result(self, *args):
         image = cv2.VideoCapture(cam_port)
-        k, frame = image.read()
+        frame = self._get_capture_frame(image)
+
         gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
         if area_for_scan != "emotion":
             self._scan_and_show_body_part_result(frame, image, gray_image)
             return
@@ -649,8 +655,10 @@ class ChooseImageCamInputScreen(Screen):
 
     def scan_and_show_cropped_result(self, *args):
         image = cv2.VideoCapture(cam_port)
-        k, frame = image.read()
+        frame = self._get_capture_frame(image)
+
         gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
         if area_for_scan != "emotion":
             self._scan_and_show_body_part_cropped_result(frame, gray_image)
             return
@@ -903,6 +911,15 @@ class ChooseImageCamInputScreen(Screen):
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                     retry = False
                     cv2.destroyWindow("PREVIEW")
+
+    @staticmethod
+    def _get_capture_frame(image):
+        frame = None
+        # looping through 5 frames to avoid getting initial black frame
+        for _ in range(5):
+            k, frame = image.read()
+        return frame
+
 
 
 class ChooseVideoScreen(Screen):
