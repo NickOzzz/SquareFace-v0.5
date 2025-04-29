@@ -948,7 +948,8 @@ class ChooseVideoScreen(Screen):
         title_label = Label(text="VIDEO",
                        pos_hint={"x": 0.194, "y": 0.83},
                        color=(0.309, 0.933, 0.078, 4), size_hint=(0.62, .07))
-        write_path_label = Label(text="WRITE FULL PATH TO A VIDEO (i.e. /Users/joe/video.mp4) OR PRESS FILE ICON TO CHOOSE FILE", pos_hint={"x": 0.01, "y": 0.24},
+        write_path_label = Label(text="WRITE FULL PATH TO A VIDEO (i.e. /Users/joe/video.mp4) OR PRESS FILE ICON TO CHOOSE FILE",
+                       pos_hint={"x": 0.01, "y": 0.24},
                        color=(0.309, 0.933, 0.078, 4))
         self.file_path_input = TextInput(hint_text='PATH TO A VIDEO',
                                          multiline=False,
